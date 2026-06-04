@@ -1,0 +1,1413 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>走廊狂奔 - 粉蠟筆 3D 跑酷</title>
+    <style>
+        * { box-sizing: border-box; user-select: none; -webkit-user-select: none; margin: 0; padding: 0; }
+        body {
+            display: flex; justify-content: center; align-items: center;
+            height: 100vh; background-color: #f4ece6; 
+            font-family: 'Comic Sans MS', 'Chalkboard SE', 'Microsoft JhengHei', sans-serif;
+            touch-action: none; overflow: hidden;
+        }
+        #gameContainer {
+            position: relative; width: 100%; max-width: 400px; height: 100%; max-height: 700px;
+            background-color: #fffaf0; box-shadow: 0 8px 24px rgba(0,0,0,0.1);
+            display: flex; flex-direction: column; overflow: hidden;
+        }
+        canvas {
+            display: block; width: 100%; flex: 1; background-color: #eaddd5;
+        }
+        #ui {
+            position: absolute; top: 15px; left: 15px; width: calc(100% - 30px);
+            display: flex; justify-content: space-between;
+            font-size: 20px; font-weight: bold; color: #6d5959; pointer-events: none;
+            text-shadow: 2px 2px 0px #fff; z-index: 5;
+        }
+        .stat { background: rgba(255, 255, 255, 0.7); padding: 5px 10px; border-radius: 8px; border: 2px solid #eaddd5; }
+        
+        #feverAlert {
+            position: absolute; top: 30%; left: 50%; transform: translate(-50%, -50%);
+            color: #f1c40f; font-size: 28px; font-weight: bold;
+            text-shadow: 2px 2px 0px #d35400, -1px -1px 0px #fff;
+            opacity: 0; transition: opacity 0.2s; text-align: center; pointer-events: none;
+            animation: pulse 1.2s infinite alternate; z-index: 6;
+        }
+        @keyframes pulse { from { transform: translate(-50%, -50%) scale(0.95); } to { transform: translate(-50%, -50%) scale(1.05); } }
+        
+        #controls {
+            width: 100%; height: 75px; background: #fdf8f5; display: flex;
+            border-top: 3px solid #eaddd5; z-index: 10;
+        }
+        .btn {
+            flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+            color: #6d5959; font-weight: bold; font-size: 14px;
+            border-right: 2px solid #eaddd5; cursor: pointer; transition: background 0.1s;
+        }
+        .btn:last-child { border-right: none; }
+        .btn:active { background: #eaddd5; }
+        .btn span { font-size: 24px; color: #d6807a; margin-top: 2px; }
+
+        .overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(255, 250, 240, 0.9); display: flex; flex-direction: column;
+            justify-content: center; align-items: center; text-align: center; z-index: 20;
+        }
+        h1 { color: #d6807a; margin-bottom: 5px; text-shadow: 1px 1px 0px #fff; font-size: 32px; }
+        .reason { color: #5c72a6; font-size: 20px; font-weight: bold; margin-bottom: 10px; }
+        p { color: #6d5959; font-size: 16px; margin-bottom: 20px; line-height: 1.6; padding: 0 20px; }
+        .actionButton {
+            padding: 12px 30px; font-size: 20px; background-color: #8bbfa3; color: white;
+            border: none; border-radius: 25px; cursor: pointer; font-family: inherit; font-weight: bold;
+            box-shadow: 0 4px 0px #6d9c82; transition: transform 0.1s, box-shadow 0.1s;
+        }
+        .actionButton:active { transform: translateY(4px); box-shadow: 0 0px 0px #6d9c82; }
+        .hidden { display: none !important; }
+
+        /* 遊戲指南樣式 */
+        .game-guide {
+            width: 90%;
+            display: flex;
+            justify-content: space-around;
+            background: rgba(255, 255, 255, 0.9);
+            padding: 10px 8px;
+            border-radius: 12px;
+            border: 2px solid #ebd8cb;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+        }
+        .guide-item {
+            text-align: center;
+            font-size: 11px;
+            color: #6d5959;
+            flex: 1;
+        }
+        .guide-item .icon {
+            font-size: 20px;
+            margin-bottom: 2px;
+            display: inline-block;
+        }
+        .guide-item strong {
+            display: block;
+            margin-top: 2px;
+            color: #d6807a;
+        }
+    </style>
+</head>
+<body>
+
+<div id="gameContainer">
+    <canvas id="gameCanvas" width="400" height="525"></canvas>
+    
+    <div id="ui">
+        <div class="stat" id="scoreDisplay">分數: 0</div>
+        <div class="stat" id="speedDisplay" style="color:#5c72a6;">時速: 10</div>
+    </div>
+    <div id="feverAlert">下課鐘聲！<br>無敵狂奔中 ✨</div>
+    
+    <div id="controls">
+        <div class="btn" id="btnLeft">閃左 <span>←</span></div>
+        <div class="btn" id="btnJump">跳躍 <span>↑</span></div>
+        <div class="btn" id="btnRight">閃右 <span>→</span></div>
+    </div>
+    
+    <div id="startScreen" class="overlay">
+        <div class="game-guide">
+            <div class="guide-item"><span class="icon">🪙 🍎 🥛 💯</span><br><strong>收集加分</strong></div>
+            <div class="guide-item"><span class="icon">🔔</span><br><strong>無敵衝刺</strong></div>
+            <div class="guide-item"><span class="icon">⚠️ 🪑 🪣 🏀 👩‍🏫</span><br><strong>碰壁結束</strong></div>
+        </div>
+        <h1>走廊狂奔 3D</h1>
+        <p>雖然不可以在走廊奔跑...<br>但在這裡可以盡情叛逆！<br><br>閃避水桶、課桌椅與學校老師<br>收集金幣、考卷與下課鐘聲！</p>
+        <button class="actionButton" onclick="startGame()">點擊狂奔</button>
+    </div>
+
+    <div id="gameOverScreen" class="overlay hidden">
+        <h1 style="color:#d6807a;">被抓到了！</h1>
+        <div id="screenReason" class="reason"></div>
+        <p id="screenDesc"></p>
+        <button class="actionButton" onclick="startGame()">重新奔跑</button>
+    </div>
+</div>
+
+<script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    const scoreDisplay = document.getElementById('scoreDisplay');
+    const speedDisplay = document.getElementById('speedDisplay');
+    const feverAlert = document.getElementById('feverAlert');
+    const startScreen = document.getElementById('startScreen');
+    const gameOverScreen = document.getElementById('gameOverScreen');
+    const screenReason = document.getElementById('screenReason');
+    const screenDesc = document.getElementById('screenDesc');
+
+    // Web Audio API
+    let audioCtx = null;
+    function initAudio() {
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    function playTone(freq, type, duration, vol=0.1) {
+        if (!audioCtx) return;
+        try {
+            let osc = audioCtx.createOscillator();
+            let gain = audioCtx.createGain();
+            osc.type = type; osc.frequency.value = freq;
+            gain.gain.setValueAtTime(vol, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+            osc.connect(gain); gain.connect(audioCtx.destination);
+            osc.start(); osc.stop(audioCtx.currentTime + duration);
+        } catch(e){}
+    }
+
+    // 遊戲狀態與參數
+    let gameState = 'start';
+    let score = 0;
+    let gameSpeed = 2.7;
+    const maxSpeed = 9;
+    let animationId;
+    let frames = 0;
+
+    // 狂熱模式
+    let feverMode = false;
+    let feverTimer = 0;
+    
+    // 物理與動態控制變數
+    let wasJumping = false;
+    let landTimer = 0;
+    let particles = [];
+
+    // 軌道與透視參數 (Horizon: cx=200, cy=130)
+    const horizonY = 130;
+    const playerBaseY = 460;
+    let currentLane = 1; // 0, 1, 2
+    let targetXOffset = 0;
+    let playerXOffset = 0;
+    
+    const player = {
+        y: playerBaseY, radius: 25,
+        jumpHeight: 0, isJumping: false, jumpVelocity: 0, gravity: 0.6
+    };
+
+    let entities = [];
+
+    // 道具定義 (新增粒子顏色屬性)
+    const itemDefs = {
+        'apple': { score: 10, size: 15, color: '#e74c3c' },
+        'test': { score: 50, size: 20, color: '#3498db' },
+        'coin': { score: 5, size: 15, color: '#f1c40f' },
+        'milk': { score: 20, size: 18, color: '#5dade2' },
+        'bell': { score: 100, size: 20, color: '#e67e22' }
+    };
+
+    const obsDefs = {
+        'bucket': { size: 22, jumpable: true, name: '清潔水桶' },
+        'ball': { size: 20, jumpable: true, name: '籃球' },
+        'cone': { size: 25, jumpable: true, name: '三角錐' },
+        'desk': { size: 35, jumpable: false, name: '課桌椅' },
+        'teacher': { size: 30, jumpable: false, name: '學校老師' }
+    };
+
+    function startGame() {
+        initAudio();
+        startScreen.classList.add('hidden');
+        gameOverScreen.classList.add('hidden');
+        
+        score = 0; gameSpeed = 3.15; frames = 0;
+        currentLane = 1; targetXOffset = 0; playerXOffset = 0;
+        player.isJumping = false; player.jumpHeight = 0;
+        feverMode = false; feverTimer = 0; feverAlert.style.opacity = '0';
+        entities = [];
+        particles = []; // 重設粒子系統
+        wasJumping = false;
+        landTimer = 0;
+        gameState = 'playing';
+        
+        playTone(523.25, 'sine', 0.3, 0.1);
+        setTimeout(() => playTone(659.25, 'sine', 0.3, 0.1), 150);
+        setTimeout(() => playTone(783.99, 'sine', 0.4, 0.1), 300);
+        
+        gameLoop();
+    }
+
+    function gameOver(reasonText) {
+        gameState = 'gameover';
+        cancelAnimationFrame(animationId);
+        playTone(150, 'sawtooth', 0.6, 0.2);
+        
+        screenReason.innerText = `因為撞到了「${reasonText}」...`;
+        screenDesc.innerHTML = `最高得分: ${Math.floor(score)}<br><br>走廊上還是用走的比較安全哦。`;
+        gameOverScreen.classList.remove('hidden');
+    }
+
+    // 計算透視縮放與 X 座標
+    function getPerspective(y, laneIndex) {
+        // progress: 0 (horizon) -> 1 (player base Y)
+        let progress = (y - horizonY) / (playerBaseY - horizonY);
+        let scale = 0.15 + 0.85 * progress;
+        // Lane offsets: -120, 0, 120 at the bottom
+        let laneOffset = (laneIndex - 1) * 120;
+        let x = 200 + laneOffset * progress;
+        return { x, scale, progress };
+    }
+
+    // 粒子系統輔助函數
+    function spawnParticle(x, y, color, type='circle', text='') {
+        particles.push({
+            x: x, y: y,
+            vx: (Math.random() - 0.5) * 6,
+            vy: (Math.random() - 0.5) * 6 - 3,
+            life: 30, maxLife: 30,
+            color: color,
+            type: type, // 'circle', 'star', 'text'
+            text: text,
+            size: 3 + Math.random() * 5
+        });
+    }
+
+    function updateParticles() {
+        for (let i = particles.length - 1; i >= 0; i--) {
+            let p = particles[i];
+            p.x += p.vx;
+            p.y += p.vy;
+            p.vy += 0.12; // 重力
+            p.life--;
+            if (p.life <= 0) {
+                particles.splice(i, 1);
+            }
+        }
+    }
+
+    function drawParticles() {
+        for (let p of particles) {
+            ctx.save();
+            ctx.globalAlpha = p.life / p.maxLife;
+            ctx.fillStyle = p.color;
+            if (p.type === 'circle') {
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.size, 0, Math.PI*2);
+                ctx.fill();
+            } else if (p.type === 'star') {
+                drawStar(ctx, p.x, p.y, 5, p.size * 1.6, p.size * 0.7);
+            } else if (p.type === 'text') {
+                ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 3;
+                ctx.font = `bold ${13 + p.size}px "Comic Sans MS", "Microsoft JhengHei", sans-serif`;
+                ctx.strokeText(p.text, p.x, p.y);
+                ctx.fillText(p.text, p.x, p.y);
+            }
+            ctx.restore();
+        }
+    }
+
+    function drawStar(ctx, cx, cy, spikes, outerRadius, innerRadius) {
+        let rot = Math.PI / 2 * 3;
+        let x = cx;
+        let y = cy;
+        let step = Math.PI / spikes;
+
+        ctx.beginPath();
+        ctx.moveTo(cx, cy - outerRadius);
+        for (let i = 0; i < spikes; i++) {
+            x = cx + Math.cos(rot) * outerRadius;
+            y = cy + Math.sin(rot) * outerRadius;
+            ctx.lineTo(x, y);
+            rot += step;
+
+            x = cx + Math.cos(rot) * innerRadius;
+            y = cy + Math.sin(rot) * innerRadius;
+            ctx.lineTo(x, y);
+            rot += step;
+        }
+        ctx.lineTo(cx, cy - outerRadius);
+        ctx.closePath();
+        ctx.fill();
+    }
+
+    // 繪製 3D 走廊牆面裝飾
+    function drawDoor(ctx, ent) {
+        let p_scale = 0.15 + 0.85 * (ent.y - horizonY) / (playerBaseY - horizonY);
+        let y_back = ent.y - 25 * p_scale;
+        let y_front = ent.y + 25 * p_scale;
+        
+        if (y_back < horizonY) y_back = horizonY;
+        
+        let t_back = (y_back - horizonY) / (canvas.height - horizonY);
+        let t_front = (y_front - horizonY) / (canvas.height - horizonY);
+        
+        let scale_back = 0.15 + 0.85 * (y_back - horizonY) / (playerBaseY - horizonY);
+        let scale_front = 0.15 + 0.85 * (y_front - horizonY) / (playerBaseY - horizonY);
+        
+        let x_back = 100 - 150 * t_back;
+        let x_front = 100 - 150 * t_front;
+        
+        let h_back = 190 * scale_back;
+        let h_front = 190 * scale_front;
+        
+        // 門板本體木紋漸層
+        let grad = ctx.createLinearGradient(x_front, y_front, x_back, y_back);
+        grad.addColorStop(0, '#8b4513');
+        grad.addColorStop(0.7, '#a0522d');
+        grad.addColorStop(1, '#cd853f');
+        ctx.fillStyle = grad;
+        
+        ctx.beginPath();
+        ctx.moveTo(x_front, y_front);
+        ctx.lineTo(x_back, y_back);
+        ctx.lineTo(x_back, y_back - h_back);
+        ctx.lineTo(x_front, y_front - h_front);
+        ctx.closePath();
+        ctx.fill();
+        
+        // 門框
+        ctx.strokeStyle = '#5c2d16';
+        ctx.lineWidth = 2 * scale_front;
+        ctx.stroke();
+        
+        // 門上小玻璃窗
+        let w_y_back = y_back - 110 * scale_back;
+        let w_y_front = y_front - 110 * scale_front;
+        let w_h_back = 55 * scale_back;
+        let w_h_front = 55 * scale_front;
+        
+        let w_x_back = x_back - 4 * scale_back;
+        let w_x_front = x_front - 4 * scale_front;
+        let w_x_back_in = x_back - 18 * scale_back;
+        let w_x_front_in = x_front - 18 * scale_front;
+        
+        ctx.fillStyle = '#d4e6f1'; // 玻璃淡藍
+        ctx.beginPath();
+        ctx.moveTo(w_x_front_in, w_y_front);
+        ctx.lineTo(w_x_back_in, w_y_back);
+        ctx.lineTo(w_x_back_in, w_y_back - w_h_back);
+        ctx.lineTo(w_x_front_in, w_y_front - w_h_front);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+        
+        // 玻璃高光反光
+        ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+        ctx.lineWidth = 1 * scale_front;
+        ctx.beginPath();
+        ctx.moveTo(w_x_front_in + 3*scale_front, w_y_front - 10*scale_front);
+        ctx.lineTo(w_x_back_in + 3*scale_back, w_y_back - 35*scale_back);
+        ctx.stroke();
+        
+        // 門把
+        let handle_x = x_front - 5 * scale_front;
+        let handle_y = y_front - 85 * scale_front;
+        ctx.fillStyle = '#f1c40f';
+        ctx.beginPath();
+        ctx.arc(handle_x, handle_y, 3 * scale_front, 0, Math.PI*2);
+        ctx.fill();
+        ctx.strokeStyle = '#d35400';
+        ctx.stroke();
+        
+        // 門牌 (例如 3年A班)
+        let sign_y_back = y_back - 155 * scale_back;
+        let sign_y_front = y_front - 155 * scale_front;
+        let sign_x_back = x_back - 8 * scale_back;
+        let sign_x_front = x_front - 8 * scale_front;
+        let sign_x_back_in = x_back - 22 * scale_back;
+        let sign_x_front_in = x_front - 22 * scale_front;
+        
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.moveTo(sign_x_front_in, sign_y_front);
+        ctx.lineTo(sign_x_back_in, sign_y_back);
+        ctx.lineTo(sign_x_back_in, sign_y_back - 14 * scale_back);
+        ctx.lineTo(sign_x_front_in, sign_y_front - 14 * scale_front);
+        ctx.closePath();
+        ctx.fill();
+        ctx.strokeStyle = '#7f8c8d';
+        ctx.stroke();
+        
+        ctx.fillStyle = '#333';
+        ctx.font = `bold ${Math.max(5, 7.5 * scale_front)}px sans-serif`;
+        ctx.fillText("3-A", (sign_x_front_in + sign_x_back_in)/2 - 5 * scale_front, (sign_y_front + sign_y_back)/2 - 3 * scale_front);
+    }
+
+    function drawWindow(ctx, ent) {
+        let p_scale = 0.15 + 0.85 * (ent.y - horizonY) / (playerBaseY - horizonY);
+        let y_back = ent.y - 30 * p_scale;
+        let y_front = ent.y + 30 * p_scale;
+        
+        if (y_back < horizonY) y_back = horizonY;
+        
+        let t_back = (y_back - horizonY) / (canvas.height - horizonY);
+        let t_front = (y_front - horizonY) / (canvas.height - horizonY);
+        
+        let scale_back = 0.15 + 0.85 * (y_back - horizonY) / (playerBaseY - horizonY);
+        let scale_front = 0.15 + 0.85 * (y_front - horizonY) / (playerBaseY - horizonY);
+        
+        let x_back = 300 + 150 * t_back;
+        let x_front = 300 + 150 * t_front;
+        
+        let h_bot_back = 65 * scale_back;
+        let h_bot_front = 65 * scale_front;
+        let h_top_back = 175 * scale_back;
+        let h_top_front = 175 * scale_front;
+        
+        // 窗外美景漸層 (粉紅夕陽雲彩)
+        let skyGrad = ctx.createLinearGradient(0, y_front - h_top_front, 0, y_front - h_bot_front);
+        skyGrad.addColorStop(0, '#ff9a9e');
+        skyGrad.addColorStop(0.5, '#fecfef');
+        skyGrad.addColorStop(1, '#a1c4fd');
+        ctx.fillStyle = skyGrad;
+        
+        let w_x_back = x_back + 4 * scale_back;
+        let w_x_front = x_front + 4 * scale_front;
+        let w_x_back_out = x_back + 28 * scale_back;
+        let w_x_front_out = x_front + 28 * scale_front;
+        
+        ctx.beginPath();
+        ctx.moveTo(w_x_front, y_front - h_bot_front);
+        ctx.lineTo(w_x_back, y_back - h_bot_back);
+        ctx.lineTo(w_x_back, y_back - h_top_back);
+        ctx.lineTo(w_x_front, y_front - h_top_front);
+        ctx.closePath();
+        ctx.fill();
+        
+        // 繪製柔軟白雲
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+        let cloud_x = (w_x_front + w_x_back)/2 + 4 * scale_front;
+        let cloud_y = (y_front - h_top_front + y_front - h_bot_front)/2 - 5 * scale_front;
+        ctx.beginPath();
+        ctx.arc(cloud_x, cloud_y, 7 * scale_front, 0, Math.PI*2);
+        ctx.arc(cloud_x + 5 * scale_front, cloud_y - 2 * scale_front, 5 * scale_front, 0, Math.PI*2);
+        ctx.arc(cloud_x - 4 * scale_front, cloud_y + 1 * scale_front, 4.5 * scale_front, 0, Math.PI*2);
+        ctx.fill();
+        
+        // 窗框
+        ctx.strokeStyle = '#7f8c8d';
+        ctx.lineWidth = 2.5 * scale_front;
+        ctx.beginPath();
+        ctx.moveTo(w_x_front, y_front - h_bot_front);
+        ctx.lineTo(w_x_back, y_back - h_bot_back);
+        ctx.lineTo(w_x_back, y_back - h_top_back);
+        ctx.lineTo(w_x_front, y_front - h_top_front);
+        ctx.closePath();
+        ctx.stroke();
+        
+        // 窗戶橫向中隔板
+        let mid_y_back = (y_back - h_bot_back + y_back - h_top_back)/2;
+        let mid_y_front = (y_front - h_bot_front + y_front - h_top_front)/2;
+        ctx.beginPath();
+        ctx.moveTo(w_x_front, mid_y_front);
+        ctx.lineTo(w_x_back, mid_y_back);
+        ctx.stroke();
+        
+        // 玻璃對角反光線
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.35)';
+        ctx.lineWidth = 1 * scale_front;
+        ctx.beginPath();
+        ctx.moveTo(w_x_front + 3 * scale_front, y_front - h_bot_front - 15 * scale_front);
+        ctx.lineTo(w_x_back + 3 * scale_back, y_back - h_bot_back - 45 * scale_back);
+        ctx.stroke();
+    }
+
+    function drawBackground() {
+        // 1. 天花板 (Ceiling)
+        ctx.fillStyle = '#fcf8f2';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
+        // 2. 磨石子地板底色 (Floor)
+        ctx.fillStyle = '#eaddd5';
+        ctx.beginPath();
+        ctx.moveTo(100, horizonY); ctx.lineTo(300, horizonY);
+        ctx.lineTo(450, canvas.height); ctx.lineTo(-50, canvas.height);
+        ctx.fill();
+
+        // 3. 左側牆面 (Left Wall)
+        ctx.fillStyle = '#ebd8cb';
+        ctx.beginPath();
+        ctx.moveTo(100, 85);
+        ctx.lineTo(100, 130);
+        ctx.lineTo(-50, 525);
+        ctx.lineTo(-50, 175);
+        ctx.closePath();
+        ctx.fill();
+
+        // 4. 右側牆面 (Right Wall)
+        ctx.fillStyle = '#ebd8cb';
+        ctx.beginPath();
+        ctx.moveTo(300, 85);
+        ctx.lineTo(300, 130);
+        ctx.lineTo(450, 525);
+        ctx.lineTo(450, 175);
+        ctx.closePath();
+        ctx.fill();
+
+        // 5. 走廊底牆 (Back Wall)
+        ctx.fillStyle = '#dcd0c4';
+        ctx.beginPath();
+        ctx.moveTo(100, 85);
+        ctx.lineTo(300, 85);
+        ctx.lineTo(300, 130);
+        ctx.lineTo(100, 130);
+        ctx.closePath();
+        ctx.fill();
+        
+        // 底牆小黑板
+        ctx.fillStyle = '#4d5b4f'; // 復古綠
+        ctx.fillRect(135, 95, 130, 24);
+        ctx.strokeStyle = '#8b4513'; ctx.lineWidth = 1.5;
+        ctx.strokeRect(135, 95, 130, 24);
+        
+        ctx.fillStyle = '#fff';
+        ctx.font = '6px "Microsoft JhengHei", sans-serif';
+        ctx.fillText("不准走廊奔跑! 🏃", 170, 110);
+
+        // 地板橫向石磚縫隙線 (動態滾動)
+        let z_spacing = 0.25; 
+        let z_offset = (frames * gameSpeed * 0.004) % z_spacing;
+        for (let z = -0.3 + (z_spacing - z_offset); z < 4.0; z += z_spacing) {
+            if (z <= -0.9) continue;
+            let progress = 1 / (z + 1);
+            let y = horizonY + progress * (playerBaseY - horizonY);
+            if (y > canvas.height || y < horizonY) continue;
+            let t_y = (y - horizonY) / (canvas.height - horizonY);
+            let x_l = 100 - 150 * t_y;
+            let x_r = 300 + 150 * t_y;
+            
+            // 越近線條越深越粗
+            ctx.strokeStyle = `rgba(214, 198, 188, ${0.2 + 0.8 * progress})`;
+            ctx.lineWidth = 0.5 + 2 * progress;
+            ctx.beginPath();
+            ctx.moveTo(x_l, y);
+            ctx.lineTo(x_r, y);
+            ctx.stroke();
+        }
+
+        // 天花板日光燈管 (動態滾動)
+        let light_spacing = 0.45;
+        let light_offset = (frames * gameSpeed * 0.004) % light_spacing;
+        for (let z = -0.2 + (light_spacing - light_offset); z < 4.0; z += light_spacing) {
+            if (z <= -0.9) continue;
+            let progress = 1 / (z + 1);
+            let y_floor = horizonY + progress * (playerBaseY - horizonY);
+            let scale = 0.15 + 0.85 * progress;
+            let y_ceil = y_floor - 300 * scale;
+            if (y_ceil > canvas.height || y_ceil < 0) continue;
+            
+            let x_center = 200;
+            let w_light = 24 * scale;
+            let l_light = 70 * scale;
+            
+            ctx.save();
+            ctx.shadowBlur = 12 * scale;
+            ctx.shadowColor = '#fcf3cf';
+            ctx.fillStyle = '#fffdf0'; // 溫暖白光
+            ctx.beginPath();
+            ctx.roundRect(x_center - w_light/2, y_ceil - l_light/2, w_light, l_light, 3 * scale);
+            ctx.fill();
+            ctx.restore();
+            
+            ctx.strokeStyle = '#c8d6e5';
+            ctx.lineWidth = 0.8 * scale;
+            ctx.strokeRect(x_center - w_light/2, y_ceil - l_light/2, w_light, l_light);
+        }
+
+        // 走廊兩側邊牆線
+        ctx.strokeStyle = '#c8b6a6'; ctx.lineWidth = 2.5;
+        ctx.beginPath(); ctx.moveTo(100, 130); ctx.lineTo(-50, canvas.height); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(300, 130); ctx.lineTo(450, canvas.height); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(100, 85); ctx.lineTo(-50, 175); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(300, 85); ctx.lineTo(450, 175); ctx.stroke();
+
+        // 軌道虛線 (只畫白虚線，融合地板質感)
+        let dashOffset = (frames * gameSpeed * 1.5) % 30;
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)'; ctx.lineWidth = 2.5;
+        ctx.lineDashOffset = -dashOffset;
+        ctx.setLineDash([12, 12]);
+        
+        // 左軌道線
+        ctx.beginPath(); ctx.moveTo(133, horizonY); ctx.lineTo(80, canvas.height); ctx.stroke();
+        // 右軌道線
+        ctx.beginPath(); ctx.moveTo(266, horizonY); ctx.lineTo(320, canvas.height); ctx.stroke();
+        
+        ctx.setLineDash([]);
+        ctx.lineDashOffset = 0;
+    }
+
+    function drawItem(ctx, type) {
+        if (type === 'apple') {
+            // 陰影
+            ctx.fillStyle = 'rgba(0,0,0,0.12)';
+            ctx.beginPath(); ctx.ellipse(0, 12, 13, 3.5, 0, 0, Math.PI*2); ctx.fill();
+            
+            // 紅蘋果漸層本體
+            let appleGrad = ctx.createRadialGradient(-3, -3, 1, 0, 0, 14);
+            appleGrad.addColorStop(0, '#ff7675');
+            appleGrad.addColorStop(0.8, '#d63031');
+            appleGrad.addColorStop(1, '#c0392b');
+            ctx.fillStyle = appleGrad;
+            ctx.beginPath();
+            ctx.arc(-6, 0, 9.5, 0, Math.PI*2);
+            ctx.arc(6, 0, 9.5, 0, Math.PI*2);
+            ctx.fill();
+            
+            // 梗
+            ctx.strokeStyle = '#795548'; ctx.lineWidth = 1.8;
+            ctx.beginPath(); ctx.moveTo(0, -6); ctx.quadraticCurveTo(2, -10, 4, -13); ctx.stroke();
+            
+            // 綠葉
+            ctx.fillStyle = '#2ecc71';
+            ctx.beginPath(); ctx.ellipse(3, -12, 5.5, 2.5, Math.PI/6, 0, Math.PI*2); ctx.fill();
+            
+            // 高光
+            ctx.fillStyle = 'rgba(255,255,255,0.45)';
+            ctx.beginPath(); ctx.arc(-4, -4, 2.5, 0, Math.PI*2); ctx.fill();
+            
+        } else if (type === 'test') {
+            // 紙本體
+            ctx.fillStyle = '#fdfefe';
+            ctx.beginPath(); ctx.roundRect(-14, -18, 28, 36, 2); ctx.fill();
+            ctx.strokeStyle = '#bdc3c7'; ctx.lineWidth = 0.8; ctx.strokeRect(-14, -18, 28, 36);
+            
+            // 橫格線
+            ctx.strokeStyle = '#d6eaf8'; ctx.lineWidth = 0.8;
+            for (let y = -11; y <= 13; y += 6) {
+                ctx.beginPath(); ctx.moveTo(-10, y); ctx.lineTo(10, y); ctx.stroke();
+            }
+            
+            // 紅色邊界線
+            ctx.strokeStyle = '#fadbd8';
+            ctx.beginPath(); ctx.moveTo(-8, -18); ctx.lineTo(-8, 18); ctx.stroke();
+            
+            // 100分大字
+            ctx.fillStyle = '#e74c3c';
+            ctx.font = 'bold 11px "Comic Sans MS", sans-serif';
+            ctx.fillText("100", -11, -1);
+            ctx.font = 'bold 7px "Comic Sans MS", sans-serif';
+            ctx.fillText("A+", 3, 9);
+            
+            // 大雙紅線底線
+            ctx.strokeStyle = '#e74c3c'; ctx.lineWidth = 1.2;
+            ctx.beginPath();
+            ctx.moveTo(-11, 3); ctx.lineTo(3, 3);
+            ctx.moveTo(-10, 5.5); ctx.lineTo(4, 5.5);
+            ctx.stroke();
+            
+        } else if (type === 'coin') {
+            // 金幣漸層
+            let coinGrad = ctx.createRadialGradient(-2.5, -2.5, 1, 0, 0, 14);
+            coinGrad.addColorStop(0, '#fef9e7');
+            coinGrad.addColorStop(0.3, '#f1c40f');
+            coinGrad.addColorStop(0.8, '#f39c12');
+            coinGrad.addColorStop(1, '#d35400');
+            ctx.fillStyle = coinGrad;
+            ctx.beginPath(); ctx.arc(0, 0, 14, 0, Math.PI*2); ctx.fill();
+            
+            // 內框線
+            ctx.strokeStyle = '#fef9e7'; ctx.lineWidth = 0.8;
+            ctx.beginPath(); ctx.arc(0, 0, 11, 0, Math.PI*2); ctx.stroke();
+            
+            // 錢幣字體
+            ctx.fillStyle = '#fdfefe';
+            ctx.font = 'bold 14px "Comic Sans MS", sans-serif';
+            ctx.fillText("$", -5, 5);
+            
+            // 閃爍星光線
+            let p_star = Math.sin(frames * 0.12) * 0.4 + 0.6;
+            ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 1.8 * p_star;
+            ctx.beginPath();
+            ctx.moveTo(-9, -9); ctx.lineTo(-9, -4);
+            ctx.moveTo(-11.5, -6.5); ctx.lineTo(-6.5, -6.5);
+            ctx.stroke();
+            
+        } else if (type === 'milk') {
+            // 牛奶盒
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(-11, -14, 22, 28);
+            ctx.strokeStyle = '#bdc3c7'; ctx.lineWidth = 1.2;
+            ctx.strokeRect(-11, -14, 22, 28);
+            
+            // 三角屋頂折疊
+            ctx.fillStyle = '#ffffff';
+            ctx.beginPath();
+            ctx.moveTo(-11, -14); ctx.lineTo(0, -22); ctx.lineTo(11, -14);
+            ctx.closePath(); ctx.fill(); ctx.stroke();
+            
+            // 藍色橫幅
+            ctx.fillStyle = '#3498db';
+            ctx.fillRect(-10, -8, 20, 9);
+            
+            // 乳牛斑紋
+            ctx.fillStyle = '#2c3e50';
+            ctx.beginPath();
+            ctx.arc(-6, 8, 2.8, 0, Math.PI*2);
+            ctx.arc(5, 5, 3.5, 0, Math.PI*2);
+            ctx.arc(-2, -1, 2.2, 0, Math.PI*2);
+            ctx.fill();
+            
+            // MILK 標籤
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 7px sans-serif';
+            ctx.fillText("M I L K", -9, -1.5);
+            
+        } else if (type === 'bell') {
+            // 黃銅漸層鐘體
+            let bellGrad = ctx.createLinearGradient(-14, -14, 14, 10);
+            bellGrad.addColorStop(0, '#f9e79f');
+            bellGrad.addColorStop(0.5, '#f1c40f');
+            bellGrad.addColorStop(1, '#b7950b');
+            
+            // 內部鐘錘
+            ctx.fillStyle = '#7e5109';
+            ctx.beginPath(); ctx.arc(0, 11, 3.5, 0, Math.PI*2); ctx.fill();
+            
+            // 鐘蓋
+            ctx.fillStyle = bellGrad;
+            ctx.beginPath();
+            ctx.moveTo(-13, 9); ctx.lineTo(-11, 2);
+            ctx.quadraticCurveTo(-9, -9, 0, -11);
+            ctx.quadraticCurveTo(9, -9, 11, 2);
+            ctx.lineTo(13, 9);
+            ctx.closePath(); ctx.fill();
+            
+            // 下沿亮邊線
+            ctx.strokeStyle = '#f7dc6f'; ctx.lineWidth = 1.8;
+            ctx.beginPath(); ctx.moveTo(-14, 9); ctx.lineTo(14, 9); ctx.stroke();
+            
+            // 木製手柄
+            ctx.strokeStyle = '#5c3a21'; ctx.lineWidth = 3.5;
+            ctx.beginPath(); ctx.moveTo(0, -11); ctx.lineTo(0, -22); ctx.stroke();
+            
+            // 金屬圓頭
+            ctx.fillStyle = '#f1c40f';
+            ctx.beginPath(); ctx.arc(0, -22, 2.5, 0, Math.PI*2); ctx.fill();
+            
+            // 聲波特效
+            ctx.strokeStyle = 'rgba(241, 196, 15, 0.55)'; ctx.lineWidth = 1.5;
+            let pulse = (frames * 0.12) % 1;
+            let radius = 17 + pulse * 14;
+            ctx.beginPath(); ctx.arc(-9, 4, radius, Math.PI * 0.7, Math.PI * 1.3); ctx.stroke();
+            ctx.beginPath(); ctx.arc(9, 4, radius, -Math.PI * 0.3, Math.PI * 0.3); ctx.stroke();
+        }
+    }
+
+    function drawObstacle(ctx, type, ent) {
+        if (type === 'cone') {
+            // 地面陰影
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.18)';
+            ctx.beginPath(); ctx.ellipse(0, 19, 22, 6, 0, 0, Math.PI*2); ctx.fill();
+            
+            // 黑色橡膠底座
+            ctx.fillStyle = '#2c3e50';
+            ctx.beginPath();
+            ctx.moveTo(-21, 19); ctx.lineTo(21, 19);
+            ctx.lineTo(15, 14); ctx.lineTo(-15, 14);
+            ctx.closePath(); ctx.fill();
+            
+            // 橘色漸層三角錐
+            let coneGrad = ctx.createLinearGradient(-12, 0, 12, 0);
+            coneGrad.addColorStop(0, '#e67e22');
+            coneGrad.addColorStop(0.3, '#ff9f43');
+            coneGrad.addColorStop(1, '#d35400');
+            ctx.fillStyle = coneGrad;
+            ctx.beginPath();
+            ctx.moveTo(0, -26); ctx.lineTo(15, 14); ctx.lineTo(-15, 14);
+            ctx.closePath(); ctx.fill();
+            
+            // 兩條反光條紋
+            ctx.fillStyle = '#ffffff';
+            // 上條紋
+            ctx.beginPath();
+            ctx.moveTo(-5.5, -4); ctx.lineTo(5.5, -4);
+            ctx.lineTo(7, 2); ctx.lineTo(-7, 2);
+            ctx.closePath(); ctx.fill();
+            // 下條紋
+            ctx.beginPath();
+            ctx.moveTo(-10.5, 7); ctx.lineTo(10.5, 7);
+            ctx.lineTo(12, 13); ctx.lineTo(-12, 13);
+            ctx.closePath(); ctx.fill();
+            
+        } else if (type === 'desk') {
+            // 木紋桌面
+            let topGrad = ctx.createLinearGradient(-25, -20, 25, -15);
+            topGrad.addColorStop(0, '#c48a56');
+            topGrad.addColorStop(0.5, '#dcb285');
+            topGrad.addColorStop(1, '#a66834');
+            ctx.fillStyle = topGrad;
+            ctx.beginPath(); ctx.roundRect(-25, -20, 50, 14, 2); ctx.fill();
+            ctx.strokeStyle = '#5c3a21'; ctx.lineWidth = 1; ctx.strokeRect(-25, -20, 50, 14);
+            
+            // 抽屜內部陰影
+            ctx.fillStyle = '#2c3e50';
+            ctx.fillRect(-22, -6, 44, 10);
+            // 抽屜裡的白紙書本
+            ctx.fillStyle = '#fff'; ctx.fillRect(-17, -4, 14, 6);
+            // 抽屜裡的紅色筆袋
+            ctx.fillStyle = '#d9534f'; ctx.fillRect(2, -4, 16, 5);
+            
+            // 鋼管課桌椅腳
+            ctx.strokeStyle = '#275e46'; ctx.lineWidth = 2.2;
+            ctx.beginPath(); ctx.moveTo(-20, 4); ctx.lineTo(-20, 24); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(20, 4); ctx.lineTo(20, 24); ctx.stroke();
+            
+            // 塑膠腳墊
+            ctx.fillStyle = '#333';
+            ctx.fillRect(-22, 22, 4, 3);
+            ctx.fillRect(18, 22, 4, 3);
+            
+        } else if (type === 'bucket') {
+            // 水桶影子
+            ctx.fillStyle = 'rgba(0,0,0,0.14)';
+            ctx.beginPath(); ctx.ellipse(0, 19, 21, 5.5, 0, 0, Math.PI*2); ctx.fill();
+            
+            // 藍色水桶漸層
+            let bucketGrad = ctx.createLinearGradient(-18, 0, 18, 0);
+            bucketGrad.addColorStop(0, '#2980b9');
+            bucketGrad.addColorStop(0.3, '#3498db');
+            bucketGrad.addColorStop(1, '#1b4f72');
+            ctx.fillStyle = bucketGrad;
+            
+            ctx.beginPath();
+            ctx.moveTo(-15, 19); ctx.lineTo(15, 19);
+            ctx.lineTo(19, -12); ctx.lineTo(-19, -12);
+            ctx.closePath(); ctx.fill();
+            
+            // 水桶溝槽橫線
+            ctx.strokeStyle = '#1b4f72'; ctx.lineWidth = 1.2;
+            ctx.beginPath(); ctx.moveTo(-17, 3); ctx.lineTo(17, 3); ctx.stroke();
+            
+            // 肥皂水 (綠藍色水面)
+            ctx.fillStyle = '#aed6f1';
+            ctx.beginPath(); ctx.ellipse(0, -12, 18.5, 3.8, 0, 0, Math.PI*2); ctx.fill();
+            
+            // 白色泡沫小泡泡
+            ctx.fillStyle = '#fff';
+            ctx.beginPath();
+            ctx.arc(-7, -13, 2, 0, Math.PI*2);
+            ctx.arc(-3, -14, 2.6, 0, Math.PI*2);
+            ctx.arc(6, -13, 2.2, 0, Math.PI*2);
+            ctx.arc(10, -12, 1.3, 0, Math.PI*2);
+            ctx.fill();
+            
+            // 金屬提把
+            ctx.strokeStyle = '#bdc3c7'; ctx.lineWidth = 1.8;
+            ctx.beginPath(); ctx.arc(0, -12, 20.5, Math.PI, 0); ctx.stroke();
+            
+            // 黃色標籤
+            ctx.fillStyle = '#f1c40f';
+            ctx.beginPath(); ctx.moveTo(0, -5); ctx.lineTo(6, 6); ctx.lineTo(-6, 6); ctx.closePath(); ctx.fill();
+            
+        } else if (type === 'ball') {
+            // 籃球旋轉滾動角度
+            let angle = ent ? (ent.y * 0.05) % (Math.PI * 2) : 0;
+            
+            // 球體影子
+            ctx.fillStyle = 'rgba(0,0,0,0.18)';
+            ctx.beginPath(); ctx.ellipse(0, 19, 19, 5.5, 0, 0, Math.PI*2); ctx.fill();
+            
+            ctx.save();
+            ctx.rotate(angle);
+            
+            // 籃球立體橘紅色球體
+            let ballGrad = ctx.createRadialGradient(-4, -4, 2, 0, 0, 19);
+            ballGrad.addColorStop(0, '#ff9f43');
+            ballGrad.addColorStop(0.8, '#e67e22');
+            ballGrad.addColorStop(1, '#d35400');
+            ctx.fillStyle = ballGrad;
+            
+            ctx.beginPath(); ctx.arc(0, 0, 19, 0, Math.PI*2); ctx.fill();
+            
+            // 籃球黑皮線
+            ctx.strokeStyle = '#2c3e50'; ctx.lineWidth = 1.5;
+            
+            // 正交十字線
+            ctx.beginPath();
+            ctx.moveTo(-19, 0); ctx.lineTo(19, 0);
+            ctx.moveTo(0, -19); ctx.lineTo(0, 19);
+            ctx.stroke();
+            
+            // 弧線
+            ctx.beginPath(); ctx.arc(-21, 0, 15, -Math.PI/3.5, Math.PI/3.5); ctx.stroke();
+            ctx.beginPath(); ctx.arc(21, 0, 15, Math.PI - Math.PI/3.5, Math.PI + Math.PI/3.5); ctx.stroke();
+            
+            ctx.restore();
+            
+            // 高光 (不旋轉，固定在左上方)
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+            ctx.beginPath(); ctx.arc(-6, -6, 3.5, 0, Math.PI*2); ctx.fill();
+            
+        } else if (type === 'teacher') {
+            // 影子
+            ctx.fillStyle = 'rgba(0,0,0,0.15)';
+            ctx.beginPath(); ctx.ellipse(0, 19, 24, 5.5, 0, 0, Math.PI*2); ctx.fill();
+            
+            // 1. 白上衣 (White top)
+            ctx.fillStyle = '#ffffff';
+            ctx.beginPath(); ctx.roundRect(-14, -18, 28, 18, 3); ctx.fill();
+            ctx.strokeStyle = '#e2e4e6'; ctx.lineWidth = 1; ctx.stroke();
+            
+            // 2. 黑短裙 (Black skirt)
+            ctx.fillStyle = '#1c1c1c';
+            ctx.beginPath(); ctx.roundRect(-16, 0, 32, 16, 3); ctx.fill();
+            
+            // 紅色領結/領帶 (Red bow tie detail)
+            ctx.fillStyle = '#e74c3c';
+            ctx.beginPath();
+            ctx.moveTo(-4, -15); ctx.lineTo(4, -15); ctx.lineTo(0, -10);
+            ctx.closePath(); ctx.fill();
+            
+            // 頭臉
+            ctx.fillStyle = '#ffcc80';
+            ctx.beginPath(); ctx.arc(0, -29, 13, 0, Math.PI*2); ctx.fill();
+            
+            // 短髮 (Short Hair Bob - frames the face with no bun)
+            ctx.fillStyle = '#3a2f28'; // Dark brown short hair
+            ctx.beginPath();
+            ctx.arc(0, -31, 14, Math.PI, 0); 
+            ctx.fill();
+            ctx.fillRect(-14, -31, 4, 11);
+            ctx.fillRect(10, -31, 4, 11);
+            ctx.beginPath();
+            ctx.moveTo(-14, -31);
+            ctx.quadraticCurveTo(0, -25, 14, -31);
+            ctx.lineTo(14, -34);
+            ctx.lineTo(-14, -34);
+            ctx.closePath();
+            ctx.fill();
+            
+            // 黑框眼鏡
+            ctx.strokeStyle = '#000'; ctx.lineWidth = 1.3;
+            ctx.beginPath();
+            ctx.arc(-5.5, -29, 3.6, 0, Math.PI*2);
+            ctx.arc(5.5, -29, 3.6, 0, Math.PI*2);
+            ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(-2, -29); ctx.lineTo(2, -29); ctx.stroke();
+            
+            // 眼鏡反光
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+            ctx.fillRect(-7.5, -31, 2.5, 1.8);
+            ctx.fillRect(3.5, -31, 2.5, 1.8);
+            
+            // 生氣的 V 形眉毛
+            ctx.strokeStyle = '#000'; ctx.lineWidth = 1.8;
+            ctx.beginPath();
+            ctx.moveTo(-9, -35); ctx.lineTo(-3.5, -32);
+            ctx.moveTo(9, -35); ctx.lineTo(3.5, -32);
+            ctx.stroke();
+            
+            // 吶喊的紅嘴巴
+            ctx.fillStyle = '#78281f';
+            ctx.beginPath(); ctx.arc(0, -22, 3.8, 0, Math.PI*2); ctx.fill();
+            
+            // 木製教鞭
+            ctx.strokeStyle = '#d35400'; ctx.lineWidth = 2.8;
+            ctx.beginPath(); ctx.moveTo(13, -8); ctx.lineTo(25, 14); ctx.stroke();
+            
+            // 憤怒的跳動 💢 符號 (調緩速度與振幅)
+            let pulseAnger = 1 + Math.sin(frames * 0.08) * 0.12;
+            ctx.save();
+            ctx.translate(15, -38);
+            ctx.scale(pulseAnger, pulseAnger);
+            ctx.strokeStyle = '#e74c3c'; ctx.lineWidth = 1.8;
+            ctx.beginPath();
+            ctx.moveTo(-5, -2); ctx.lineTo(5, -2);
+            ctx.moveTo(-5, 3); ctx.lineTo(5, 3);
+            ctx.moveTo(-2, -5); ctx.lineTo(-2, 7);
+            ctx.moveTo(3, -5); ctx.lineTo(3, 7);
+            ctx.stroke();
+            ctx.restore();
+        }
+    }
+
+    function drawPlayer() {
+        ctx.save();
+        // 水平滑動插值
+        targetXOffset = (currentLane - 1) * 120;
+        playerXOffset += (targetXOffset - playerXOffset) * 0.25;
+        
+        // 跳躍物理計算
+        if (player.isJumping) {
+            player.y = playerBaseY; // 確保原位置正確
+            player.jumpHeight += player.jumpVelocity;
+            player.jumpVelocity -= player.gravity;
+            if (player.jumpHeight <= 0) {
+                player.jumpHeight = 0; player.isJumping = false;
+            }
+        }
+
+        let pPers = getPerspective(player.y, currentLane);
+        let actualX = 200 + playerXOffset * pPers.progress;
+        let actualY = player.y - player.jumpHeight;
+        
+        // 偵測落地以觸發回彈動畫
+        if (!player.isJumping && wasJumping) {
+            landTimer = 10;
+        }
+        wasJumping = player.isJumping;
+        
+        // 貓咪投影隨高度縮小與變淡
+        let shadowWidth = 25 * (1 - Math.min(0.6, player.jumpHeight / 200));
+        let shadowOpacity = 0.16 * (1 - Math.min(0.8, player.jumpHeight / 250));
+        ctx.fillStyle = `rgba(0, 0, 0, ${shadowOpacity})`;
+        ctx.beginPath(); ctx.ellipse(actualX, player.y + 15, shadowWidth, 5.5, 0, 0, Math.PI*2); ctx.fill();
+
+        ctx.translate(actualX, actualY);
+        
+        // 擠壓與拉伸 (Squash and Stretch)
+        let scaleX = 1;
+        let scaleY = 1;
+        
+        if (player.isJumping) {
+            let jumpVelRatio = player.jumpVelocity / 11.5;
+            if (jumpVelRatio > 0) {
+                scaleY = 1 + jumpVelRatio * 0.18; // 向上跳拉伸
+                scaleX = 1 - jumpVelRatio * 0.09;
+            } else {
+                scaleY = 1 + jumpVelRatio * 0.15; // 向下落壓扁
+                scaleX = 1 - jumpVelRatio * 0.08;
+            }
+        } else if (landTimer > 0) {
+            let ratio = landTimer / 10;
+            scaleX = 1 + ratio * 0.22 * Math.sin(landTimer * 0.7);
+            scaleY = 1 - ratio * 0.22 * Math.sin(landTimer * 0.7);
+            landTimer--;
+        } else {
+            // 平地奔跑起伏
+            let bob = Math.sin(frames * 0.28) * 1.5;
+            ctx.translate(0, bob);
+        }
+        
+        ctx.scale(scaleX, scaleY);
+        
+        // Fever 模式金色護盾與尾跡星芒
+        if (feverMode) {
+            ctx.save();
+            ctx.shadowColor = '#f1c40f'; ctx.shadowBlur = 18;
+            ctx.fillStyle = 'rgba(255, 235, 59, 0.08)';
+            ctx.strokeStyle = '#f1c40f'; ctx.lineWidth = 1.8;
+            ctx.beginPath(); ctx.arc(0, 0, 31, 0, Math.PI*2);
+            ctx.fill(); ctx.stroke();
+            ctx.restore();
+            
+            // 隨機在尾部生成星芒粒子
+            if (frames % 3 === 0) {
+                particles.push({
+                    x: actualX - 15 + Math.random() * 30,
+                    y: actualY + 5 + (Math.random() - 0.5) * 15,
+                    vx: (Math.random() - 0.5) * 2,
+                    vy: Math.random() * 1.5 + 0.8, // 往後/下飄
+                    life: 25, maxLife: 25,
+                    color: '#f1c40f',
+                    type: 'star',
+                    size: 3 + Math.random() * 4
+                });
+            }
+        }
+
+        // --- 繪製貓咪主體 ---
+        
+        // 1. 貓尾巴 (擺動)
+        ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 5.5; ctx.lineCap = 'round';
+        let tailSwing = Math.sin(frames * 0.18) * 0.35;
+        if (player.isJumping) tailSwing = 0.55;
+        ctx.save();
+        ctx.translate(0, 15);
+        ctx.rotate(tailSwing);
+        ctx.beginPath(); ctx.moveTo(0, 0);
+        ctx.quadraticCurveTo(14, 8, 9, -14);
+        ctx.stroke();
+        ctx.restore();
+
+        // 2. 藍色書包
+        let packGrad = ctx.createLinearGradient(-22, -10, 22, 20);
+        packGrad.addColorStop(0, '#5dade2');
+        packGrad.addColorStop(1, '#2e4053');
+        ctx.fillStyle = packGrad;
+        ctx.beginPath(); ctx.roundRect(-21, -8, 42, 26, 7); ctx.fill();
+        ctx.strokeStyle = '#2471a3'; ctx.lineWidth = 1.8; ctx.stroke();
+        // 黃色反光條
+        ctx.fillStyle = '#f1c40f';
+        ctx.fillRect(-17, 5, 5, 11);
+        ctx.fillRect(12, 5, 5, 11);
+
+        // 3. 貓爪 (跑步擺動)
+        ctx.fillStyle = '#ffffff';
+        let leftPaw = Math.sin(frames * 0.32) * 7.5;
+        let rightPaw = -Math.sin(frames * 0.32) * 7.5;
+        if (player.isJumping) { leftPaw = -3; rightPaw = 3; }
+        // 前爪
+        ctx.beginPath(); ctx.ellipse(-11, 21 + leftPaw*0.25, 4.8, 7.5, leftPaw*0.06, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.ellipse(11, 21 + rightPaw*0.25, 4.8, 7.5, rightPaw*0.06, 0, Math.PI*2); ctx.fill();
+        // 後爪 (略深)
+        ctx.fillStyle = '#e2e4e6';
+        ctx.beginPath(); ctx.ellipse(-5, 22 + rightPaw*0.2, 4.2, 6.8, rightPaw*0.05, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.ellipse(6, 22 + leftPaw*0.2, 4.2, 6.8, leftPaw*0.05, 0, Math.PI*2); ctx.fill();
+
+        // 4. 白色大頭與身體
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath(); ctx.arc(0, 0, 24, 0, Math.PI*2); ctx.fill();
+
+        // 5. 貓耳朵與粉色內耳
+        // 左耳
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath(); ctx.moveTo(-14, -14); ctx.lineTo(-23, -34); ctx.lineTo(-4, -21); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = '#ffb3ba';
+        ctx.beginPath(); ctx.moveTo(-12, -16); ctx.lineTo(-19, -30); ctx.lineTo(-6, -20); ctx.closePath(); ctx.fill();
+        // 右耳
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath(); ctx.moveTo(15, -14); ctx.lineTo(23, -34); ctx.lineTo(4, -21); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = '#ffb3ba';
+        ctx.beginPath(); ctx.moveTo(12, -16); ctx.lineTo(19, -30); ctx.lineTo(6, -20); ctx.closePath(); ctx.fill();
+
+        // 6. 五官臉孔 (眨眼、水靈亮眼與腮紅)
+        let blink = (frames % 150 < 6);
+        ctx.fillStyle = '#2c3e50';
+        ctx.strokeStyle = '#2c3e50'; ctx.lineWidth = 2.2; ctx.lineCap = 'round';
+        
+        if (blink || player.isJumping) {
+            // 閉眼弧線
+            ctx.beginPath(); ctx.arc(-8, -2, 3.5, Math.PI, 0, false); ctx.stroke();
+            ctx.beginPath(); ctx.arc(8, -2, 3.5, Math.PI, 0, false); ctx.stroke();
+        } else {
+            // 大圓黑眼睛
+            ctx.beginPath(); ctx.arc(-8, -2, 4.2, 0, Math.PI*2); ctx.fill();
+            ctx.beginPath(); ctx.arc(8, -2, 4.2, 0, Math.PI*2); ctx.fill();
+            // 白色高光眼點
+            ctx.fillStyle = '#ffffff';
+            ctx.beginPath(); ctx.arc(-9.5, -3.5, 1.4, 0, Math.PI*2); ctx.fill();
+            ctx.beginPath(); ctx.arc(6.5, -3.5, 1.4, 0, Math.PI*2); ctx.fill();
+        }
+
+        // 粉紅塞紅
+        ctx.fillStyle = 'rgba(255, 179, 186, 0.75)';
+        ctx.beginPath(); ctx.arc(-13, 3.5, 3.5, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(13, 3.5, 3.5, 0, Math.PI*2); ctx.fill();
+
+        // 貓嘴 (w 形)
+        ctx.strokeStyle = '#4d5656'; ctx.lineWidth = 1.3;
+        ctx.beginPath(); ctx.arc(-2.5, 2.5, 2.5, 0, Math.PI, false); ctx.stroke();
+        ctx.beginPath(); ctx.arc(2.5, 2.5, 2.5, 0, Math.PI, false); ctx.stroke();
+        
+        // 貓鬍鬚 (兩側各 3 根)
+        ctx.strokeStyle = '#bdc3c7'; ctx.lineWidth = 1.0;
+        ctx.beginPath();
+        // 左側鬍鬚
+        ctx.moveTo(-19, 1.5); ctx.lineTo(-28, -0.5);
+        ctx.moveTo(-20, 4.5); ctx.lineTo(-29, 4.5);
+        ctx.moveTo(-19, 7.5); ctx.lineTo(-27, 9.5);
+        // 右側鬍鬚
+        ctx.moveTo(19, 1.5); ctx.lineTo(28, -0.5);
+        ctx.moveTo(20, 4.5); ctx.lineTo(29, 4.5);
+        ctx.moveTo(19, 7.5); ctx.lineTo(27, 9.5);
+        ctx.stroke();
+
+        // 7. Fever 戴上小學黃帽
+        if (feverMode) {
+            ctx.save();
+            ctx.translate(0, -21);
+            // 黃帽底沿
+            ctx.fillStyle = '#f1c40f';
+            ctx.beginPath(); ctx.ellipse(0, 0, 15, 7.5, 0, 0, Math.PI*2); ctx.fill();
+            // 帽頂圓球
+            ctx.beginPath(); ctx.arc(0, -2.5, 10, Math.PI, 0); ctx.fill();
+            // 窗沿帽舌
+            ctx.strokeStyle = '#f1c40f'; ctx.lineWidth = 2.5;
+            ctx.beginPath(); ctx.arc(0, 1.5, 13, 0, Math.PI); ctx.stroke();
+            // 小紅徽章
+            ctx.fillStyle = '#e74c3c';
+            ctx.beginPath(); ctx.arc(0, -5, 2, 0, Math.PI*2); ctx.fill();
+            ctx.restore();
+        }
+
+        ctx.restore();
+    }
+
+    function updateSpawner() {
+        // 動態牆面裝飾生成 (門與窗戶交替)
+        if (frames % Math.floor(95 / (gameSpeed * 0.15 + 0.4)) === 0) {
+            let wallsCount = entities.filter(e => e.cat === 'wall').length;
+            let side = (wallsCount % 2 === 0) ? 'left' : 'right';
+            let type = (side === 'left') ? 'door' : 'window';
+            entities.push({
+                cat: 'wall', side: side, type: type, y: horizonY, size: 0
+            });
+        }
+
+        // 常規障礙物與道具生成
+        if (frames % Math.floor(120 - gameSpeed * 5) === 0) {
+            let lane = Math.floor(Math.random() * 3);
+            let isItem = Math.random() < 0.45;
+            
+            if (isItem) {
+                let r = Math.random();
+                let type = 'coin';
+                if (r > 0.95) type = 'bell';
+                else if (r > 0.7) type = 'test';
+                else if (r > 0.4) type = 'milk';
+                else if (r > 0.2) type = 'apple';
+                
+                entities.push({
+                    cat: 'item', lane: lane, y: horizonY, type: type, size: itemDefs[type].size
+                });
+            } else {
+                let types = Object.keys(obsDefs);
+                let type = types[Math.floor(Math.random() * types.length)];
+                entities.push({
+                    cat: 'obs', lane: lane, y: horizonY, type: type, size: obsDefs[type].size, def: obsDefs[type]
+                });
+            }
+        }
+    }
+
+    function gameLoop() {
+        if (gameState !== 'playing') return;
+        
+        // 難度與分數推進
+        if (gameSpeed < maxSpeed && frames % 60 === 0) gameSpeed += 0.045;
+        score += gameSpeed * 0.1;
+        scoreDisplay.innerText = `分數: ${Math.floor(score)}`;
+        speedDisplay.innerText = `時速: ${Math.floor(gameSpeed * 5)}`;
+
+        // Fever 邏輯
+        if (feverMode) {
+            feverTimer--;
+            if (feverTimer <= 0) { feverMode = false; feverAlert.style.opacity = '0'; }
+        }
+
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        drawBackground();
+        updateSpawner();
+
+        // 排序實體 (遠到近) 確保遮罩正確
+        entities.sort((a, b) => a.y - b.y);
+
+        for (let i = entities.length - 1; i >= 0; i--) {
+            let ent = entities[i];
+            
+            // 越近移動越快 (營造 3D 速度感)
+            let pers = getPerspective(ent.y, ent.lane);
+            ent.y += gameSpeed * (0.6 + pers.progress * 1.5);
+            
+            pers = getPerspective(ent.y, ent.lane); // 重算當前幀
+            
+            if (ent.cat === 'wall') {
+                // 牆壁裝飾無須繪製地影，直接利用 3D 頂點投影渲染
+                if (ent.type === 'door') drawDoor(ctx, ent);
+                else drawWindow(ctx, ent);
+            } else {
+                ctx.save();
+                // 地面投影陰影
+                ctx.fillStyle = 'rgba(0,0,0,0.1)';
+                ctx.beginPath();
+                ctx.ellipse(pers.x, ent.y + (ent.size * pers.scale * 0.7), ent.size * pers.scale * 1.2, ent.size * pers.scale * 0.35, 0, 0, Math.PI*2);
+                ctx.fill();
+                
+                ctx.translate(pers.x, ent.y);
+                ctx.scale(pers.scale, pers.scale);
+                
+                if (ent.cat === 'item') drawItem(ctx, ent.type);
+                else drawObstacle(ctx, ent.type, ent);
+                ctx.restore();
+            }
+
+            // 碰撞判定 (排除了牆面裝飾)
+            if (ent.cat !== 'wall' && ent.y > player.y - 30 && ent.y < player.y + 30 && ent.lane === currentLane) {
+                if (ent.cat === 'item') {
+                    score += itemDefs[ent.type].score;
+                    
+                    // 生成數值浮動粒子
+                    spawnParticle(pers.x, ent.y - 15, itemDefs[ent.type].color, 'text', `+${itemDefs[ent.type].score}`);
+                    // 生成亮閃星星碎花
+                    for (let k = 0; k < 6; k++) {
+                        spawnParticle(pers.x, ent.y, itemDefs[ent.type].color);
+                    }
+
+                    if (ent.type === 'bell') {
+                        feverMode = true; feverTimer = 300; feverAlert.style.opacity = '1';
+                        playTone(1200, 'triangle', 0.4, 0.15);
+                    } else {
+                        playTone(800 + Math.random()*200, 'sine', 0.1, 0.1);
+                    }
+                    entities.splice(i, 1);
+                    continue;
+                } else if (ent.cat === 'obs') {
+                    if (feverMode) {
+                        // 無敵狀態撞飛障礙物
+                        score += 50; 
+                        playTone(400, 'noise', 0.15, 0.15);
+                        
+                        // 生成 +50 分浮動文字
+                        spawnParticle(pers.x, ent.y - 15, '#f1c40f', 'text', `+50`);
+                        // 生成橘紅色大片爆炸木屑碎片
+                        for (let k = 0; k < 12; k++) {
+                            spawnParticle(pers.x, ent.y, '#e67e22');
+                        }
+                        
+                        entities.splice(i, 1);
+                        continue;
+                    }
+                    
+                    let canDodge = ent.def.jumpable;
+                    if (!(canDodge && player.jumpHeight > 30)) {
+                        gameOver(ent.def.name);
+                        return;
+                    }
+                }
+            }
+            
+            if (ent.y > canvas.height + 50) entities.splice(i, 1);
+        }
+
+        drawPlayer();
+        
+        // 更新並繪製所有粒子特效
+        updateParticles();
+        drawParticles();
+        
+        frames++;
+        animationId = requestAnimationFrame(gameLoop);
+    }
+
+    // 操作控制
+    function handleInput(act) {
+        if (gameState !== 'playing') return;
+        if (act === 'left' && currentLane > 0) { currentLane--; playTone(300, 'square', 0.05, 0.05); }
+        if (act === 'right' && currentLane < 2) { currentLane++; playTone(300, 'square', 0.05, 0.05); }
+        if (act === 'up' && !player.isJumping) {
+            player.isJumping = true; player.jumpVelocity = 11.5;
+            playTone(450, 'triangle', 0.15, 0.1);
+        }
+    }
+
+    // 鍵盤
+    window.addEventListener('keydown', (e) => {
+        if (e.key === 'ArrowLeft' || e.key === 'a') handleInput('left');
+        if (e.key === 'ArrowRight' || e.key === 'd') handleInput('right');
+        if (e.key === 'ArrowUp' || e.key === 'w' || e.key === ' ') handleInput('up');
+    });
+
+    // 虛擬按鍵
+    const btnLeft = document.getElementById('btnLeft');
+    const btnRight = document.getElementById('btnRight');
+    const btnJump = document.getElementById('btnJump');
+    
+    btnLeft.addEventListener('touchstart', e => { e.preventDefault(); handleInput('left'); });
+    btnLeft.addEventListener('mousedown', () => handleInput('left'));
+    btnRight.addEventListener('touchstart', e => { e.preventDefault(); handleInput('right'); });
+    btnRight.addEventListener('mousedown', () => handleInput('right'));
+    btnJump.addEventListener('touchstart', e => { e.preventDefault(); handleInput('up'); });
+    btnJump.addEventListener('mousedown', () => handleInput('up'));
+
+    // 滑動支援 (保留)
+    let touchStartX = 0, touchStartY = 0;
+    canvas.addEventListener('touchstart', e => {
+        touchStartX = e.changedTouches[0].screenX; touchStartY = e.changedTouches[0].screenY;
+    }, {passive: false});
+    canvas.addEventListener('touchend', e => {
+        let dx = e.changedTouches[0].screenX - touchStartX;
+        let dy = e.changedTouches[0].screenY - touchStartY;
+        if (Math.abs(dx) > Math.abs(dy)) {
+            if (dx > 30) handleInput('right'); else if (dx < -30) handleInput('left');
+        } else { if (dy < -30) handleInput('up'); }
+    }, {passive: false});
+
+</script>
+
+</body>
+</html>

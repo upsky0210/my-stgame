@@ -1,0 +1,825 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>像素森林冒險 - 滑鼠精準度 (Sky Games)</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700;900&display=swap" rel="stylesheet">
+<style>
+    :root {
+        /* Base Palette */
+        --bg-paper: #f0ece1;
+        --wood-light: #d8caba;
+        --wood-dark: #8c7355;
+        --ink-light: #595959;
+        --ink-dark: #262626;
+        --accent-red: #8b3a3a;
+        --accent-green: #5c7054;
+        
+        /* Extended Jelly & Forest Colors */
+        --forest-bg: #e6f0e1;
+        --forest-board: #fffaf0;
+        --shadow-color: rgba(38, 38, 38, 0.15);
+        --jelly-depth: 6px;
+    }
+    
+    * { box-sizing: border-box; }
+    
+    html, body {
+        height: 100%;
+        overflow: hidden; /* 防止整個頁面出現捲軸 */
+    }
+    
+    body { 
+        margin: 0; padding: 0;
+        background-color: var(--forest-bg);
+        background-image: 
+            radial-gradient(var(--wood-light) 2px, transparent 2px),
+            radial-gradient(var(--wood-light) 2px, transparent 2px);
+        background-size: 40px 40px;
+        background-position: 0 0, 20px 20px;
+        font-family: 'Noto Sans TC', sans-serif;
+        color: var(--ink-dark);
+        user-select: none;
+        -webkit-user-select: none;
+    }
+
+    /* ===== Main Layout ===== */
+    .page-wrapper {
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 20px;
+        gap: 20px;
+        max-width: 1100px;
+        margin: 0 auto;
+    }
+
+    .header {
+        text-align: center;
+        flex-shrink: 0;
+    }
+    
+    .header h1 {
+        font-size: clamp(24px, 4vw, 36px);
+        font-weight: 900;
+        color: var(--wood-dark);
+        margin: 0;
+        text-shadow: 2px 2px 0 #fff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 12px;
+    }
+    
+    .header .subtitle {
+        font-size: clamp(14px, 2vw, 16px);
+        color: var(--accent-green);
+        font-weight: 700;
+        margin-top: 8px;
+        background: #fff;
+        padding: 4px 16px;
+        border-radius: 99px;
+        display: inline-block;
+        border: 2px solid var(--accent-green);
+        box-shadow: 0 3px 0 var(--accent-green);
+    }
+
+    #app {
+        display: grid;
+        grid-template-columns: 320px 1fr;
+        gap: 24px;
+        width: 100%;
+        flex-grow: 1;
+        min-height: 0; /* 允許內部元素收縮 */
+    }
+
+    @media (max-width: 900px) {
+        body { overflow: auto; } /* 手機版允許捲動 */
+        #app { 
+            grid-template-columns: 1fr; 
+            gap: 20px;
+        }
+        .page-wrapper { height: auto; min-height: 100vh; padding: 10px; }
+    }
+
+    /* ===== Left Panel (Tools) ===== */
+    .panel {
+        background: var(--forest-board);
+        border: 4px solid var(--wood-dark);
+        border-radius: 24px;
+        padding: 24px;
+        box-shadow: 0 12px 0 var(--wood-dark), 0 20px 25px rgba(0,0,0,0.1);
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        overflow-y: auto; /* 面板內容若過多則內部捲動 */
+    }
+
+    /* Wood grain decoration */
+    .panel::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        border-radius: 20px;
+        background-image: repeating-linear-gradient(45deg, transparent, transparent 15px, rgba(140, 115, 85, 0.03) 15px, rgba(140, 115, 85, 0.03) 30px);
+        pointer-events: none;
+    }
+
+    .panel-content {
+        position: relative;
+        z-index: 2;
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+    }
+
+    .section-title {
+        font-size: 16px;
+        font-weight: 900;
+        margin: 16px 0 10px;
+        color: var(--wood-dark);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    .section-title:first-child { margin-top: 0; }
+
+    /* ===== Buttons (Jelly Style) ===== */
+    .btn {
+        font-family: 'Noto Sans TC', sans-serif;
+        font-size: clamp(18px, 2vw, 22px);
+        font-weight: 900;
+        padding: 14px 24px;
+        border: 4px solid var(--ink-dark);
+        border-radius: 16px;
+        cursor: pointer;
+        transition: transform 0.1s, box-shadow 0.1s;
+        box-shadow: 0 var(--jelly-depth) 0 var(--ink-dark);
+        width: 100%;
+        text-align: center;
+        text-decoration: none;
+        display: inline-block;
+    }
+    
+    .btn:active, .btn.active { 
+        transform: translateY(var(--jelly-depth)); 
+        box-shadow: 0 0 0 var(--ink-dark); 
+    }
+    
+    .btn.primary { 
+        background: #ffaa00; 
+        color: var(--ink-dark); 
+    }
+    .btn.secondary {
+        background: #fff;
+        color: var(--ink-dark);
+        font-size: 16px;
+        padding: 10px 16px;
+    }
+
+    /* ===== Tools Box ===== */
+    .tools-box {
+        display: none;
+        animation: fadeIn 0.3s ease;
+        flex-grow: 1;
+        flex-direction: column;
+    }
+    .tools-box.active { display: flex; }
+    
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Colors */
+    .palette {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 10px;
+    }
+    .color-btn {
+        width: 100%;
+        aspect-ratio: 1;
+        border: 3px solid var(--ink-dark);
+        border-radius: 12px;
+        cursor: pointer;
+        box-shadow: 0 4px 0 var(--ink-dark);
+        transition: transform 0.1s, box-shadow 0.1s;
+        position: relative;
+    }
+    .color-btn::after {
+        content: '';
+        position: absolute;
+        top: 2px; left: 2px; right: 2px; height: 30%;
+        background: linear-gradient(rgba(255,255,255,0.4), transparent);
+        border-radius: 6px;
+    }
+    .color-btn.active {
+        transform: scale(1.1) translateY(-2px);
+        box-shadow: 0 6px 0 var(--ink-dark);
+        outline: 4px solid var(--accent-green);
+        outline-offset: 4px;
+    }
+    .color-btn:active {
+        transform: translateY(2px);
+        box-shadow: 0 0 0 var(--ink-dark);
+    }
+    
+    /* Template Box */
+    .templates {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 10px;
+    }
+    .tpl-btn {
+        font-family: inherit;
+        background: #fff;
+        border: 3px solid var(--ink-dark);
+        border-radius: 12px;
+        padding: 8px 0;
+        font-size: 14px;
+        font-weight: 900;
+        color: var(--ink-dark);
+        cursor: pointer;
+        box-shadow: 0 4px 0 var(--ink-dark);
+        transition: transform 0.1s, box-shadow 0.1s;
+    }
+    .tpl-btn:active {
+        transform: translateY(4px);
+        box-shadow: 0 0 0 var(--ink-dark);
+    }
+
+    /* Action Buttons */
+    .actions {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+    }
+    .act-btn {
+        font-family: inherit;
+        padding: 10px 6px;
+        font-size: 14px;
+        font-weight: 900;
+        border-radius: 12px;
+        cursor: pointer;
+        border: 3px solid var(--ink-dark);
+        box-shadow: 0 4px 0 var(--ink-dark);
+        transition: transform 0.1s, box-shadow 0.1s, filter 0.1s;
+    }
+    
+    .act-btn:active, .act-btn.active {
+        transform: translateY(4px);
+        box-shadow: 0 0 0 var(--ink-dark);
+        filter: brightness(0.9);
+    }
+
+    .license-info {
+        margin-top: auto;
+        padding-top: 16px;
+        border-top: 2px dashed var(--wood-light);
+        font-size: 12px;
+        color: var(--ink-light);
+        text-align: center;
+        line-height: 1.5;
+    }
+
+    /* ===== Interactive Area (Right) ===== */
+    .interactive-area {
+        background: var(--forest-board);
+        border: 4px solid var(--wood-dark);
+        border-radius: 24px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 24px;
+        box-shadow: 0 12px 0 var(--wood-dark), 0 20px 25px rgba(0,0,0,0.1);
+        position: relative;
+        height: 100%;
+        overflow: hidden;
+    }
+
+    .screen {
+        width: 100%;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+    }
+    .hidden { display: none !important; }
+
+    /* Canvas Grid */
+    #canvas-container {
+        display: grid;
+        grid-template-columns: repeat(16, 1fr);
+        grid-template-rows: repeat(16, 1fr);
+        width: min(100%, 75vh, 500px);
+        max-height: 100%;
+        aspect-ratio: 1;
+        background: #fff;
+        border: 6px solid var(--ink-dark);
+        border-radius: 16px;
+        box-shadow: 0 8px 0 var(--shadow-color);
+        touch-action: none; /* Prevent scroll on touch while drawing */
+        overflow: hidden;
+    }
+    .cell {
+        border-right: 1px solid rgba(140, 115, 85, 0.2);
+        border-bottom: 1px solid rgba(140, 115, 85, 0.2);
+        background-color: transparent;
+        cursor: crosshair;
+    }
+    .cell.no-border {
+        border-color: transparent !important;
+    }
+    .cell:nth-child(16n) { border-right: none; }
+    .cell:nth-last-child(-n+16) { border-bottom: none; }
+
+    #notification {
+        position: absolute; 
+        bottom: 20px; 
+        background: var(--ink-dark); 
+        color: white; 
+        padding: 10px 20px; 
+        border-radius: 99px; 
+        font-weight: 900; 
+        font-size: 16px;
+        opacity: 0; 
+        transform: translateY(20px);
+        transition: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55); 
+        pointer-events: none;
+        box-shadow: 0 8px 15px rgba(0,0,0,0.2);
+        z-index: 100;
+    }
+    #notification.show {
+        opacity: 1;
+        transform: translateY(0);
+    }
+
+    /* Start Screen Status */
+    .start-graphics {
+        text-align: center;
+    }
+    .start-graphics .big-emoji {
+        font-size: 80px;
+        filter: drop-shadow(0 10px 0 rgba(0,0,0,0.1));
+        animation: float 3s ease-in-out infinite;
+    }
+    
+    @keyframes float {
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(-15px); }
+    }
+</style>
+</head>
+<body>
+
+<div class="page-wrapper">
+    <header class="header">
+        <h1>🌲 像素森林冒險</h1>
+        <div class="subtitle">色彩與精準度</div>
+    </header>
+
+    <main id="app">
+        <!-- Left Panel -->
+        <div class="panel">
+            <div class="panel-content">
+                <div id="panel-start" style="width: 100%; display: flex; flex-direction: column; align-items: center; gap: 20px; padding: 20px 0; flex-grow: 1; justify-content: center;">
+                    <button class="btn primary" onclick="startGame()">▶ 進入畫布</button>
+                    <div style="background: rgba(255,255,255,0.6); padding: 12px; border-radius: 12px; color: var(--ink-light); font-size: 14px; font-weight: 700; text-align: center; border: 2px dashed var(--wood-light); width: 100%;">
+                        <br>
+                    </div>
+                </div>
+
+                <!-- Tools Box (Hidden initially) -->
+                <div id="panel-tools" class="tools-box">
+                    <!-- Palette -->
+                    <div class="section-title"><span>🎨</span> 選擇顏色</div>
+                    <div class="palette" id="color-palette"></div>
+
+                    <!-- Tools -->
+                    <div class="section-title"><span>🛠️</span> 工具箱</div>
+                    <div class="actions">
+                        <button id="btn-eraser" class="act-btn" onclick="setTool('eraser')" style="background:#fecdd3;">🧽 橡皮擦</button>
+                        <button id="btn-bucket" class="act-btn" onclick="setTool('bucket')" style="background:#bae6fd;">🪣 油漆桶</button>
+                        <button class="act-btn" onclick="clearCanvas()" style="background:#fca5a5;">🗑️ 清除全部</button>
+                        <button class="act-btn" onclick="toggleGrid()" style="background:#fef08a;">👁️ 切換格線</button>
+                        <button class="act-btn" onclick="saveImage()" style="background:#a7f3d0; grid-column: span 2;">💾 儲存作品</button>
+                    </div>
+
+                    <!-- Templates -->
+                    <div class="section-title"><span>💡</span> 圖案參考</div>
+                    <div class="templates" id="template-buttons"></div>
+                    <p style="font-size: 12px; font-weight: 700; color: var(--accent-red); margin-top: 8px; text-align: center; margin-bottom: 12px;">
+                        * 選擇圖案會清除現在的畫作喔！
+                    </p>
+                    
+                  
+                </div>
+
+                <div class="license-info">
+                   
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Interactive Area -->
+        <div class="interactive-area">
+            <!-- Start Screen -->
+            <div id="start-screen" class="screen">
+                <div class="start-graphics">
+                    <div class="big-emoji">🦊</div>
+                    <h2 style="color: var(--wood-dark); font-weight: 900;">準備好探險了嗎？</h2>
+                    <p style="color: var(--ink-light); font-weight: 700;">點擊左側的「進入畫布」開始！</p>
+                </div>
+            </div>
+
+            <!-- Game Screen -->
+            <div id="game-screen" class="screen hidden">
+                <div id="canvas-container"></div>
+                <div id="notification"></div>
+            </div>
+        </div>
+    </main>
+</div>
+
+<script>
+// --- Procedural Web Audio API ---
+const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+function playTone(freq, type, duration, vol=0.1) {
+    if(audioCtx.state === 'suspended') audioCtx.resume();
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = type;
+    osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+    gain.gain.setValueAtTime(0, audioCtx.currentTime);
+    gain.gain.linearRampToValueAtTime(vol, audioCtx.currentTime + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.start();
+    osc.stop(audioCtx.currentTime + duration);
+}
+
+// Gentle paint sounds
+function playPaint() { playTone(Math.random() * 200 + 400, 'sine', 0.05, 0.05); }
+function playErase() { playTone(300, 'triangle', 0.1, 0.05); }
+function playSelect() { playTone(600, 'sine', 0.1, 0.1); }
+function playAction() { 
+    playTone(523.25, 'sine', 0.1, 0.1);
+    setTimeout(() => playTone(659.25, 'sine', 0.15, 0.1), 100);
+}
+
+// --- Game Logic ---
+const colors = [
+    '#ef4444', '#f97316', '#eab308', '#22c55e', 
+    '#3b82f6', '#8b5cf6', '#ec4899', '#78350f',
+    '#000000', '#64748b', '#cbd5e1', '#ffffff'
+];
+
+const templateMap = {
+    '.': 'transparent', 'R': '#ef4444', 'O': '#f97316', 'Y': '#eab308', 'G': '#22c55e',
+    'B': '#3b82f6', 'P': '#8b5cf6', 'K': '#ec4899', 'W': '#78350f',
+    'D': '#000000', 'S': '#64748b', 'L': '#cbd5e1', 'H': '#ffffff'
+};
+
+const templates = {
+    'heart': { name: '❤️ 立體愛心', color: '#ef4444', data: [
+        "................",
+        "................",
+        "...DD....DD.....",
+        "..DRRD..DRRD....",
+        ".DRRRRDDRRRRD...",
+        ".DRHHHHDRRRRD...",
+        ".DRRHHHRRRRRD...",
+        ".DDRRRRRRRRDD...",
+        "..DDRRRRRRDD....",
+        "...DDRRRRDD.....",
+        "....DDRRDD......",
+        ".....DDRD.......",
+        "......DD........",
+        "................",
+        "................",
+        "................"
+    ]},
+    'star': { name: '⭐ 魔法星星', color: '#eab308', data: [
+        "................",
+        ".......DD.......",
+        "......DYYD......",
+        "......DYYD......",
+        ".....DYYYYD.....",
+        "DDDDDDYYYYDDDDDD",
+        "DYYYYYYYYYYYYYYD",
+        ".DYYYYYYYYYYYYD.",
+        "..DYYYYYYYYYYD..",
+        "...DYYYYYYYYD...",
+        "..DYYYYDDYYYYD..",
+        ".DYYYYD..DYYYYD.",
+        ".DYYYD....DYYYD.",
+        "DDDDDD....DDDDDD",
+        "................",
+        "................"
+    ]},
+    'sword': { name: '🗡️ 勇者之劍', color: '#cbd5e1', data: [
+        "..............DD",
+        ".............DLD",
+        "............DLLD",
+        "...........DLLLD",
+        "..........DLLLD.",
+        ".........DLLLD..",
+        "........DLLLD...",
+        ".......DLLLD....",
+        "......DLLLD.....",
+        ".....DLLLD......",
+        "....DLLLD.......",
+        "...DYYYD........",
+        "..DYYYYYD.......",
+        "....DYD.........",
+        "....DWD.........",
+        "....DDD........."
+    ]},
+    'mushroom': { name: '🍄 遊戲蘑菇', color: '#ef4444', data: [
+        "................",
+        "......DDDD......",
+        "....DDRRRRDD....",
+        "...DRRRRRRRRD...",
+        "..DRRHHHRRRRRD..",
+        ".DRRHHHHHRRRRRD.",
+        ".DRRHHHHRRHHHRD.",
+        ".DRRRRRRRRHHHRD.",
+        ".DDRRRRRRRRRRDD.",
+        "..DDDDDDDDDDDD..",
+        "...DHHHHHHHHD...",
+        "...DHHDDHHHHD...",
+        "...DHHDDHHHHD...",
+        "....DHHHHHHD....",
+        ".....DDDDDD.....",
+        "................"
+    ]}
+};
+
+let currentColor = colors[0];
+let currentTool = 'pen'; // 'pen', 'eraser', 'bucket'
+let showGrid = true;
+let isPainting = false;
+const gridCells = [];
+
+function setTool(tool) {
+    currentTool = tool;
+    playSelect();
+    
+    const eraserBtn = document.getElementById('btn-eraser');
+    const bucketBtn = document.getElementById('btn-bucket');
+    
+    if (eraserBtn) eraserBtn.classList.toggle('active', tool === 'eraser');
+    if (bucketBtn) bucketBtn.classList.toggle('active', tool === 'bucket');
+    
+    if (tool === 'eraser' || tool === 'bucket') {
+        document.querySelectorAll('.color-btn').forEach(b => b.classList.remove('active'));
+    }
+}
+
+function startGame() {
+    document.getElementById('panel-start').style.display = 'none';
+    document.getElementById('panel-tools').classList.add('active');
+    document.getElementById('start-screen').classList.add('hidden');
+    document.getElementById('game-screen').classList.remove('hidden');
+    
+    if(audioCtx.state === 'suspended') audioCtx.resume();
+    playAction();
+
+    initPalette();
+    initCanvas();
+    initTemplates();
+}
+
+function initPalette() {
+    const pal = document.getElementById('color-palette');
+    pal.innerHTML = '';
+    colors.forEach((c, idx) => {
+        const btn = document.createElement('div');
+        btn.className = 'color-btn' + (idx === 0 ? ' active' : '');
+        btn.style.backgroundColor = c;
+        
+        btn.onclick = () => {
+            playSelect();
+            setTool('pen');
+            currentColor = c;
+            document.querySelectorAll('.color-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+        };
+        pal.appendChild(btn);
+    });
+}
+
+function initCanvas() {
+    const container = document.getElementById('canvas-container');
+    container.innerHTML = '';
+    gridCells.length = 0;
+    
+    for (let i = 0; i < 256; i++) {
+        const cell = document.createElement('div');
+        cell.className = 'cell';
+        cell.dataset.idx = i;
+        cell.style.backgroundColor = 'transparent';
+        container.appendChild(cell);
+        gridCells.push(cell);
+    }
+
+    // Pointer events for drawing
+    container.addEventListener('pointerdown', (e) => {
+        e.preventDefault();
+        if (e.target.classList.contains('cell')) {
+            const idx = parseInt(e.target.dataset.idx);
+            if (currentTool === 'bucket') {
+                floodFill(idx, currentColor);
+            } else {
+                isPainting = true;
+                paintCell(e.target);
+                container.setPointerCapture(e.pointerId);
+            }
+        }
+    });
+
+    container.addEventListener('pointermove', (e) => {
+        if (!isPainting) return;
+        const el = document.elementFromPoint(e.clientX, e.clientY);
+        if (el && el.classList.contains('cell')) {
+            paintCell(el);
+        }
+    });
+
+    container.addEventListener('pointerup', () => isPainting = false);
+    container.addEventListener('pointercancel', () => isPainting = false);
+}
+
+function paintCell(cell) {
+    const colorToApply = (currentTool === 'eraser') ? 'transparent' : currentColor;
+    if (cell.style.backgroundColor !== colorToApply) {
+        cell.style.backgroundColor = colorToApply;
+        if(currentTool === 'eraser') playErase();
+        else playPaint();
+        
+        saveLocal();
+    }
+}
+
+function clearCanvas() {
+    playAction();
+    gridCells.forEach(cell => cell.style.backgroundColor = 'transparent');
+    saveLocal();
+    showToast('已清除畫布 🧹');
+}
+
+function floodFill(startIdx, targetColor) {
+    const startColor = gridCells[startIdx].style.backgroundColor;
+    const tColorTemp = document.createElement('div');
+    tColorTemp.style.backgroundColor = targetColor;
+    if (startColor === tColorTemp.style.backgroundColor) return;
+
+    playAction();
+    const queue = [startIdx];
+    const visited = new Set([startIdx]);
+
+    while (queue.length > 0) {
+        const curr = queue.shift();
+        gridCells[curr].style.backgroundColor = targetColor;
+
+        const r = Math.floor(curr / 16);
+        const c = curr % 16;
+
+        const neighbors = [
+            [r - 1, c], [r + 1, c], [r, c - 1], [r, c + 1]
+        ];
+
+        for (const [nr, nc] of neighbors) {
+            if (nr >= 0 && nr < 16 && nc >= 0 && nc < 16) {
+                const nIdx = nr * 16 + nc;
+                if (!visited.has(nIdx) && gridCells[nIdx].style.backgroundColor === startColor) {
+                    visited.add(nIdx);
+                    queue.push(nIdx);
+                }
+            }
+        }
+    }
+    saveLocal();
+}
+
+function toggleGrid() {
+    playAction();
+    showGrid = !showGrid;
+    gridCells.forEach(cell => {
+        if (showGrid) {
+            cell.classList.remove('no-border');
+        } else {
+            cell.classList.add('no-border');
+        }
+    });
+    showToast(showGrid ? '已顯示格線 👁️' : '已隱藏格線 🙈');
+}
+
+function initTemplates() {
+    const tplDiv = document.getElementById('template-buttons');
+    tplDiv.innerHTML = '';
+    Object.keys(templates).forEach(key => {
+        const btn = document.createElement('button');
+        btn.className = 'tpl-btn';
+        btn.innerText = templates[key].name;
+        btn.onclick = () => loadTemplate(key);
+        tplDiv.appendChild(btn);
+    });
+}
+
+function loadTemplate(key) {
+    playAction();
+    gridCells.forEach(cell => cell.style.backgroundColor = 'transparent');
+    
+    const tpl = templates[key];
+    tpl.data.forEach((rowStr, r) => {
+        for(let c=0; c<16; c++) {
+            const char = rowStr[c];
+            const color = templateMap[char];
+            const idx = r * 16 + c;
+            if (color && color !== 'transparent') {
+                gridCells[idx].style.backgroundColor = color;
+            }
+        }
+    });
+    saveLocal();
+    showToast('已載入圖案：' + tpl.name);
+    
+    const palBtns = document.querySelectorAll('.color-btn');
+    const colorIdx = colors.indexOf(tpl.color);
+    if(colorIdx >= 0) {
+        palBtns[colorIdx].click();
+    } else {
+        setTool('pen');
+    }
+}
+
+function saveLocal() {
+    const data = gridCells.map(c => c.style.backgroundColor === 'transparent' ? '' : c.style.backgroundColor);
+    localStorage.setItem('edtech-unit5-save', JSON.stringify(data));
+    localStorage.setItem('edtech-unit5-score', '100');
+}
+
+window.onload = () => {
+    try {
+        const saved = JSON.parse(localStorage.getItem('edtech-unit5-save'));
+        if (saved && saved.length === 256) {
+            const _init = initCanvas;
+            initCanvas = () => {
+                _init();
+                saved.forEach((c, i) => {
+                    if(c) gridCells[i].style.backgroundColor = c;
+                });
+            };
+        }
+    } catch (e) {}
+}
+
+function saveImage() {
+    playAction();
+    const canvas = document.createElement('canvas');
+    canvas.width = 512;
+    canvas.height = 512;
+    const ctx = canvas.getContext('2d');
+    
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    const cellSize = 32;
+    gridCells.forEach((cell, idx) => {
+        const r = Math.floor(idx / 16);
+        const c = idx % 16;
+        const color = cell.style.backgroundColor;
+        if (color !== 'transparent' && color !== 'rgba(0, 0, 0, 0)') {
+            ctx.fillStyle = color;
+            ctx.fillRect(c * cellSize, r * cellSize, cellSize, cellSize);
+        }
+    });
+    
+    const link = document.createElement('a');
+    link.download = 'my-pixel-art.png';
+    link.href = canvas.toDataURL();
+    link.click();
+    showToast('🎉 圖片已儲存！');
+}
+
+let toastTimeout;
+function showToast(msg) {
+    const toast = document.getElementById('notification');
+    toast.innerText = msg;
+    toast.classList.add('show');
+    
+    clearTimeout(toastTimeout);
+    toastTimeout = setTimeout(() => { 
+        toast.classList.remove('show'); 
+    }, 2500);
+}
+</script>
+</body>
+</html>

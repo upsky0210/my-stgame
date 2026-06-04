@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>我的特色下樓梯 v0.4 (畫質優化版)</title>
+<style>
+    body {
+        margin: 0; padding: 20px; background-color: #1a1a2e; /* 更深的星空藍 */
+        background-image: radial-gradient(circle at 50% 0%, #2c3e50, #1a1a2e 80%);
+        color: white; font-family: 'Microsoft JhengHei', sans-serif; text-align: center;
+        display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 90vh;
+    }
+    #game-container {
+        display: inline-block; position: relative;
+        background: linear-gradient(180deg, #0f2027, #203a43, #2c5364); /* 漂亮的漸層背景 */
+        border: 6px solid #e0eaf5; border-radius: 16px; /* 更圓滑的邊框 */
+        box-shadow: 0 15px 50px rgba(0,0,0,0.8), 0 0 20px rgba(52, 152, 219, 0.4); /* 發光陰影 */
+        overflow: hidden;
+    }
+    /* 固定顯示尺寸，內部 canvas 解析度加倍以提升畫質 */
+    canvas { display: block; width: 800px; height: 800px; }
+    
+    /* UI 圖層 */
+    .ui-layer {
+        position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+        display: flex; flex-direction: column; justify-content: center; align-items: center;
+        background: rgba(0,0,0,0.7); z-index: 10;
+        backdrop-filter: blur(4px); /* 毛玻璃特效 */
+    }
+    #start-screen { display: flex; }
+    #game-over-screen { display: none; }
+    
+    h1 { margin: 0 0 20px 0; color: #f1c40f; font-size: 56px; text-shadow: 0 4px 10px rgba(0,0,0,0.5); }
+    h2 { color: #ff7675; font-size: 64px; margin: 0 0 15px 0; text-shadow: 0 4px 10px rgba(0,0,0,0.5); }
+    p.inst { font-size: 20px; margin: 10px 0 30px 0; color: #dfe6e9; line-height: 1.6; text-shadow: 0 2px 4px rgba(0,0,0,0.8); }
+    
+    .btn-group { display: flex; gap: 20px; }
+    button.main-btn {
+        padding: 15px 35px; font-size: 24px; font-weight: bold;
+        cursor: pointer; background: linear-gradient(135deg, #00b09b, #96c93d); color: white; border: none;
+        border-radius: 50px; transition: 0.3s; box-shadow: 0 6px 15px rgba(0, 176, 155, 0.4);
+    }
+    button.main-btn:hover { transform: translateY(-3px); box-shadow: 0 8px 20px rgba(0, 176, 155, 0.6); }
+    button.main-btn:active { transform: translateY(2px); box-shadow: 0 2px 10px rgba(0, 176, 155, 0.4); }
+    
+    button.btn-blue { background: linear-gradient(135deg, #36D1DC, #5B86E5); box-shadow: 0 6px 15px rgba(54, 209, 220, 0.4); }
+    button.btn-blue:hover { box-shadow: 0 8px 20px rgba(54, 209, 220, 0.6); }
+    
+    /* 狀態顯示 HUD */
+    #hud {
+        display: flex; justify-content: space-between; width: 800px;
+        margin: 0 auto 15px auto; font-size: 24px; font-weight: bold;
+        background: rgba(0,0,0,0.4); padding: 10px 20px; border-radius: 12px; box-sizing: border-box;
+        border: 1px solid rgba(255,255,255,0.1);
+    }
+    .stat-val { color: #ffeaa7; text-shadow: 0 0 5px rgba(255,234,167,0.5); }
+    .hp-val { color: #ff7675; text-shadow: 0 0 5px rgba(255,118,117,0.5); }
+    .hp-val-p2 { color: #74b9ff; text-shadow: 0 0 5px rgba(116,185,255,0.5); }
+
+    /* 控制面板 (拉條) */
+    #controls-area {
+        display: flex; justify-content: center; align-items: center; gap: 15px;
+        width: 800px; margin: 0 auto 15px auto; padding: 12px;
+        background: rgba(255,255,255,0.08); border-radius: 12px;
+        font-size: 20px; color: #ecf0f1; border: 1px solid rgba(255,255,255,0.1);
+    }
+    #controls-area input[type=range] {
+        width: 300px; cursor: pointer; accent-color: #00cec9;
+    }
+
+    /* 上傳區域控制 */
+    #upload-area {
+        margin-top: 20px; background: rgba(0,0,0,0.3);
+        padding: 20px; border-radius: 16px; border: 2px dashed rgba(255,255,255,0.2);
+        display: flex; gap: 60px; justify-content: center; width: 800px; box-sizing: border-box;
+    }
+    .upload-box { display: flex; flex-direction: column; align-items: center; gap: 12px; }
+    #upload-area label { font-size: 18px; color: #ffeaa7; cursor: pointer; background: rgba(255,255,255,0.1); padding: 10px 20px; border-radius: 8px; transition: 0.3s; }
+    #upload-area label:hover { background: rgba(255,255,255,0.2); transform: scale(1.05); }
+    #upload-area input[type=file] { display: none; }
+    .preview-emoji { font-size: 50px; margin-top: 10px; filter: drop-shadow(0 4px 6px rgba(0,0,0,0.4)); }
+    .preview-img { width: 60px; height: 60px; margin-top: 10px; object-fit: contain; display: none; filter: drop-shadow(0 4px 6px rgba(0,0,0,0.4)); }
+</style>
+</head>
+<body>
+
+<!-- 速度調整拉條區 -->
+<div id="controls-area">
+    <label for="speed-slider">⚡ 遊戲速度: <span id="speed-display" class="stat-val">0.8x</span></label>
+    <input type="range" id="speed-slider" min="0" max="4" step="1" value="1" oninput="updateSpeed()">
+</div>
+
+<div id="hud">
+    <div id="p1-hud">🐱 P1 生命: <span id="hp-display" class="hp-val">❤❤❤</span></div>
+    <div>地下層數: <span id="score-display" class="stat-val">0</span></div>
+    <div id="p2-hud" style="display:none;">🐶 P2 生命: <span id="hp-display-p2" class="hp-val-p2">❤❤❤</span></div>
+</div>
+
+<div id="game-container">
+    <canvas id="gameCanvas"></canvas>
+    
+    <div id="start-screen" class="ui-layer">
+        <h1>我的特色下樓梯</h1>
+        <p class="inst">
+            ✨ <b>畫質優化版</b> ✨<br><br>
+            [單人模式] 左右方向鍵 或 A/D 鍵移動<br>
+            [雙人模式] P1: A/D鍵 | P2: 左右方向鍵<br><br>
+            <i>全新元素：會左右移動的雲朵階梯！</i>
+        </p>
+        <div class="btn-group">
+            <button class="main-btn" onclick="startGame(1)">單人遊戲</button>
+            <button class="main-btn btn-blue" onclick="startGame(2)">雙人遊戲</button>
+        </div>
+    </div>
+
+    <div id="game-over-screen" class="ui-layer">
+        <h2>遊戲結束!</h2>
+        <p id="final-score" class="inst">你到達了地下 0 層</p>
+        <div class="btn-group">
+            <button class="main-btn" onclick="resetToMenu()">回主畫面</button>
+        </div>
+    </div>
+</div>
+
+<div id="upload-area">
+    <div class="upload-box">
+        <label for="p1-image-input" style="color:#ffeaa7;">🎨 上傳 P1 角色圖</label>
+        <input type="file" id="p1-image-input" accept="image/png, image/jpeg">
+        <!-- 更換為可愛的貓咪 -->
+        <div id="p1-preview-emoji" class="preview-emoji">🐱</div>
+        <img id="p1-preview-img" class="preview-img" src="" alt="P1">
+    </div>
+    <div class="upload-box">
+        <label for="p2-image-input" style="color:#74b9ff;">🎨 上傳 P2 角色圖</label>
+        <input type="file" id="p2-image-input" accept="image/png, image/jpeg">
+        <!-- 更換為可愛的狗狗 -->
+        <div id="p2-preview-emoji" class="preview-emoji">🐶</div>
+        <img id="p2-preview-img" class="preview-img" src="" alt="P2">
+    </div>
+</div>
+
+<script>
+    const canvas = document.getElementById("gameCanvas");
+    const ctx = canvas.getContext("2d");
+    
+    // 支援高畫質螢幕 (High-DPI Retina Display)
+    const GAME_WIDTH = 800;
+    const GAME_HEIGHT = 800;
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = GAME_WIDTH * dpr;
+    canvas.height = GAME_HEIGHT * dpr;
+    ctx.scale(dpr, dpr);
+    
+    let gameLoop;
+    let isPlaying = false;
+    let score = 0;
+    let floorCounter = 0;
+    const maxHP = 3;
+    let currentMode = 1;
+
+    // --- 速度整體放慢 0.8 倍 (全局常數) ---
+    const GLOBAL_SLOW = 0.8; 
+
+    // 動態速度設定 (UI 拉條對應的倍率)
+    const speedOptions = [0.5, 0.8, 1.0, 1.2, 1.5];
+    let SPEED_FACTOR = 0.8; 
+    
+    // 基礎參數套用 GLOBAL_SLOW
+    const BASE_PLAYER_SPEED = 12.5 * GLOBAL_SLOW;
+    const BASE_GRAVITY = 1.0 * GLOBAL_SLOW;
+    const BASE_MAX_FALL = 20.0 * GLOBAL_SLOW;
+    const BASE_PLATFORM_SPEED = 5.5 * GLOBAL_SLOW;
+
+    let currentPlatformSpeed = BASE_PLATFORM_SPEED * SPEED_FACTOR;
+
+    // 圖片儲存
+    let p1CustomImg = null;
+    let p2CustomImg = null;
+
+    // 處理上傳預覽
+    function handleUpload(inputId, emojiId, imgId, callback) {
+        document.getElementById(inputId).addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                const img = new Image();
+                img.onload = function() {
+                    document.getElementById(emojiId).style.display = 'none';
+                    const preview = document.getElementById(imgId);
+                    preview.src = event.target.result;
+                    preview.style.display = 'block';
+                    callback(img);
+                };
+                img.src = event.target.result;
+            };
+            reader.readAsDataURL(file);
+        });
+    }
+
+    handleUpload('p1-image-input', 'p1-preview-emoji', 'p1-preview-img', img => p1CustomImg = img);
+    handleUpload('p2-image-input', 'p2-preview-emoji', 'p2-preview-img', img => p2CustomImg = img);
+
+    // 玩家陣列與特效陣列
+    let players = [];
+    let particles = [];
+
+    // 圓角矩形繪製函數 (優化畫質)
+    function drawRoundRect(ctx, x, y, width, height, radius, fill, stroke) {
+        ctx.beginPath();
+        ctx.moveTo(x + radius, y);
+        ctx.lineTo(x + width - radius, y);
+        ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+        ctx.lineTo(x + width, y + height - radius);
+        ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+        ctx.lineTo(x + radius, y + height);
+        ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+        ctx.lineTo(x, y + radius);
+        ctx.quadraticCurveTo(x, y, x + radius, y);
+        ctx.closePath();
+        if (fill) { ctx.fillStyle = fill; ctx.fill(); }
+        if (stroke) { ctx.strokeStyle = stroke; ctx.stroke(); }
+    }
+
+    class Player {
+        constructor(id, x, color, defaultEmoji, customImg, leftKeys, rightKeys) {
+            this.id = id;
+            this.x = x; 
+            this.y = 150; 
+            this.w = 50; 
+            this.h = 50;
+            this.dx = 0; 
+            this.dy = 0;
+            this.color = color;
+            this.defaultEmoji = defaultEmoji;
+            this.customImg = customImg;
+            this.hp = maxHP;
+            this.invincibleTimer = 0;
+            this.isDead = false;
+            this.leftKeys = Array.isArray(leftKeys) ? leftKeys : [leftKeys];
+            this.rightKeys = Array.isArray(rightKeys) ? rightKeys : [rightKeys];
+            
+            this.updatePhysics();
+        }
+
+        updatePhysics() {
+            this.speed = BASE_PLAYER_SPEED * SPEED_FACTOR;
+            this.gravity = BASE_GRAVITY * SPEED_FACTOR;
+            this.maxFallSpeed = BASE_MAX_FALL * SPEED_FACTOR;
+        }
+
+        isLeftPressed() { return this.leftKeys.some(k => keys[k]); }
+        isRightPressed() { return this.rightKeys.some(k => keys[k]); }
+    }
+
+    function createParticles(x, y, color) {
+        for(let i=0; i<10; i++){
+            particles.push({
+                x: x, y: y,
+                vx: (Math.random() - 0.5) * 8,
+                vy: (Math.random() - 1) * 8,
+                life: 1.0, color: color
+            });
+        }
+    }
+
+    // 更新速度
+    function updateSpeed() {
+        const sliderVal = document.getElementById("speed-slider").value;
+        SPEED_FACTOR = speedOptions[sliderVal];
+        document.getElementById("speed-display").innerText = SPEED_FACTOR + "x";
+        currentPlatformSpeed = BASE_PLATFORM_SPEED * SPEED_FACTOR;
+        
+        players.forEach(p => {
+            p.updatePhysics();
+            if (p.dy > p.maxFallSpeed) p.dy = p.maxFallSpeed;
+        });
+    }
+
+    let platforms = [];
+    const platformHeight = 24;
+    
+    // 鍵盤監聽
+    let keys = {};
+    window.addEventListener("keydown", (e) => { 
+        keys[e.code] = true; 
+        if(["ArrowUp","ArrowDown","ArrowLeft","ArrowRight","Space"].includes(e.code)){ e.preventDefault(); }
+    });
+    window.addEventListener("keyup", (e) => { keys[e.code] = false; });
+
+    function initGame(mode) {
+        currentMode = mode;
+        players = [];
+        particles = [];
+        score = 0;
+        floorCounter = 0;
+        platforms = [];
+
+        // 建立玩家 (預設改為可愛貓咪與狗狗)
+        if (mode === 1) {
+            players.push(new Player(1, GAME_WIDTH / 2 - 25, "#f1c40f", "🐱", p1CustomImg, ["ArrowLeft", "KeyA"], ["ArrowRight", "KeyD"]));
+            document.getElementById("p2-hud").style.display = "none";
+        } else {
+            players.push(new Player(1, GAME_WIDTH / 2 - 80, "#f1c40f", "🐱", p1CustomImg, ["KeyA"], ["KeyD"]));
+            players.push(new Player(2, GAME_WIDTH / 2 + 30, "#3498db", "🐶", p2CustomImg, ["ArrowLeft"], ["ArrowRight"]));
+            document.getElementById("p2-hud").style.display = "block";
+        }
+        
+        // 初始安全階梯
+        for (let i = 0; i < 6; i++) {
+            platforms.push({
+                x: Math.random() * (GAME_WIDTH - 180),
+                y: 250 + i * 130,
+                w: 160 + Math.random() * 60,
+                type: 'normal',
+                moveSpeed: 0
+            });
+        }
+        
+        document.getElementById("start-screen").style.display = "none";
+        document.getElementById("game-over-screen").style.display = "none";
+        updateSpeed(); 
+        updateHUD();
+    }
+
+    function createPlatform() {
+        const typeRoll = Math.random();
+        let type = 'normal';
+        let moveSpeed = 0;
+
+        // 新增機率配置，加入移動平台
+        if (typeRoll > 0.85) { type = 'spike'; }
+        else if (typeRoll > 0.70) { type = 'spring'; }
+        else if (typeRoll > 0.50) { 
+            type = 'moving'; 
+            moveSpeed = (Math.random() > 0.5 ? 1 : -1) * (2 + Math.random() * 2) * SPEED_FACTOR; 
+        }
+
+        platforms.push({
+            x: Math.random() * (GAME_WIDTH - 200),
+            y: GAME_HEIGHT + 40,
+            w: 150 + Math.random() * 80,
+            type: type,
+            moveSpeed: moveSpeed
+        });
+    }
+
+    function update() {
+        if (!isPlaying) return;
+
+        let activePlayers = 0;
+
+        // 更新粒子特效
+        for (let i = particles.length - 1; i >= 0; i--) {
+            let p = particles[i];
+            p.x += p.vx;
+            p.y += p.vy;
+            p.life -= 0.05;
+            if (p.life <= 0) particles.splice(i, 1);
+        }
+
+        // 更新階梯位置
+        platforms.forEach(p => {
+            p.y -= currentPlatformSpeed;
+            if (p.type === 'moving') {
+                p.x += p.moveSpeed;
+                if (p.x < 0 || p.x + p.w > GAME_WIDTH) {
+                    p.moveSpeed *= -1; // 碰到牆壁反彈
+                }
+            }
+        });
+
+        players.forEach(player => {
+            if (player.isDead) return;
+            activePlayers++;
+
+            let startX = player.x; // 記錄移動前位置
+
+            if (player.isLeftPressed()) player.x -= player.speed;
+            if (player.isRightPressed()) player.x += player.speed;
+
+            if (player.x < -player.w) player.x = GAME_WIDTH;
+            if (player.x > GAME_WIDTH) player.x = -player.w;
+
+            player.dy += player.gravity;
+            if (player.dy > player.maxFallSpeed) player.dy = player.maxFallSpeed;
+            
+            if (player.invincibleTimer > 0) player.invincibleTimer--;
+
+            for (let i = 0; i < platforms.length; i++) {
+                let p = platforms[i];
+                if (
+                    player.dy >= 0 && 
+                    player.y + player.h <= p.y + currentPlatformSpeed + player.maxFallSpeed + 5 && 
+                    player.y + player.h + player.dy >= p.y && 
+                    player.x + player.w > p.x && 
+                    player.x < p.x + p.w
+                ) {
+                    // 跟隨移動平台一起動
+                    if (p.type === 'moving') {
+                        player.x += p.moveSpeed;
+                    }
+
+                    if (p.type === 'normal' || p.type === 'moving') {
+                        player.dy = -currentPlatformSpeed; 
+                        player.y = p.y - player.h;
+                    } 
+                    else if (p.type === 'spring') {
+                        player.dy = -22 * Math.sqrt(SPEED_FACTOR); // 彈簧特效微調，不會因為太慢飛不起來
+                        createParticles(player.x + player.w/2, player.y + player.h, "#00cec9");
+                    }
+                    else if (p.type === 'spike') {
+                        if (player.invincibleTimer <= 0) {
+                            player.hp--;
+                            player.invincibleTimer = 60; 
+                            createParticles(player.x + player.w/2, player.y + player.h/2, "#ff7675");
+                            updateHUD();
+                            if (player.hp <= 0) player.isDead = true;
+                        }
+                        player.dy = -currentPlatformSpeed; 
+                        player.y = p.y - player.h;
+                    }
+                }
+            }
+
+            player.y += player.dy;
+
+            // 掉出畫面或撞到頂部尖刺
+            if (player.y < 0 || player.y > GAME_HEIGHT) {
+                player.isDead = true;
+                player.hp = 0;
+                createParticles(player.x + player.w/2, player.y + player.h/2, "#ffffff");
+                updateHUD();
+            }
+        });
+
+        if (platforms[0] && platforms[0].y < -40) {
+            platforms.shift();
+            createPlatform();
+        }
+
+        if (activePlayers === 0) {
+            gameOver();
+            return;
+        }
+
+        // 計分機制
+        floorCounter++;
+        if (floorCounter % Math.floor(65 / SPEED_FACTOR) === 0) { 
+            score++;
+            updateHUD();
+        }
+    }
+
+    function draw() {
+        // 清除背景 (漸層保留於 CSS，這裡用全透明)
+        ctx.clearRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+
+        // 畫頂部尖刺 (優化畫質)
+        ctx.fillStyle = "#ff4757";
+        ctx.shadowBlur = 10;
+        ctx.shadowColor = "rgba(255, 71, 87, 0.5)";
+        const spikeW = 40, spikeH = 30;
+        for (let i = 0; i < GAME_WIDTH; i += spikeW) {
+            ctx.beginPath();
+            ctx.moveTo(i, 0); ctx.lineTo(i + spikeW/2, spikeH); ctx.lineTo(i + spikeW, 0);
+            ctx.fill();
+        }
+        ctx.shadowBlur = 0; // 重置陰影
+
+        // 畫階梯
+        platforms.forEach(p => {
+            ctx.shadowBlur = 8;
+            ctx.shadowColor = "rgba(0,0,0,0.5)";
+            
+            if (p.type === 'normal') {
+                drawRoundRect(ctx, p.x, p.y, p.w, platformHeight, 8, "#2ed573", null);
+            } 
+            else if (p.type === 'moving') {
+                // 雲朵般的藍色圓滑平台
+                drawRoundRect(ctx, p.x, p.y, p.w, platformHeight, 12, "#70a1ff", null);
+                ctx.fillStyle = "rgba(255,255,255,0.4)";
+                ctx.fillRect(p.x + 10, p.y + 4, p.w - 20, 6);
+            }
+            else if (p.type === 'spring') {
+                drawRoundRect(ctx, p.x, p.y, p.w, platformHeight, 8, "#1e90ff", null);
+                ctx.strokeStyle = "#fff"; ctx.lineWidth = 4;
+                ctx.beginPath(); ctx.moveTo(p.x+p.w*0.3, p.y+4); ctx.lineTo(p.x+p.w*0.7, p.y+platformHeight-4); ctx.stroke();
+            }
+            else if (p.type === 'spike') {
+                drawRoundRect(ctx, p.x, p.y + spikeH/3, p.w, platformHeight - spikeH/3, 5, "#ff4757", null);
+                const pSpikeW = 20;
+                ctx.fillStyle = "#ff6b81";
+                for(let j=p.x; j<p.x+p.w; j+=pSpikeW) {
+                    ctx.beginPath();
+                    ctx.moveTo(j, p.y + spikeH/3); ctx.lineTo(j+pSpikeW/2, p.y - 4); ctx.lineTo(j+pSpikeW, p.y + spikeH/3);
+                    ctx.fill();
+                }
+            }
+            ctx.shadowBlur = 0;
+        });
+
+        // 畫玩家
+        players.forEach(p => {
+            if (p.isDead) return;
+            if (p.invincibleTimer % 10 < 5) { 
+                ctx.shadowBlur = 10;
+                ctx.shadowColor = p.color;
+                
+                if (p.customImg) {
+                    ctx.drawImage(p.customImg, p.x, p.y, p.w, p.h);
+                } else {
+                    ctx.font = `${p.h}px Arial`;
+                    ctx.textAlign = "center";
+                    ctx.textBaseline = "middle";
+                    ctx.fillText(p.defaultEmoji, p.x + p.w/2, p.y + p.h/2);
+                }
+                ctx.shadowBlur = 0;
+            }
+        });
+
+        // 畫粒子特效
+        particles.forEach(p => {
+            ctx.globalAlpha = p.life;
+            ctx.fillStyle = p.color;
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, 4, 0, Math.PI * 2);
+            ctx.fill();
+        });
+        ctx.globalAlpha = 1.0;
+    }
+
+    function updateHUD() {
+        document.getElementById("score-display").innerText = score;
+        
+        if (players.length > 0) {
+            let hpStr = "";
+            for(let i=0; i<maxHP; i++) { hpStr += (i < players[0].hp) ? "❤" : "🖤"; }
+            document.getElementById("hp-display").innerText = hpStr;
+        }
+        
+        if (players.length > 1) {
+            let hpStr2 = "";
+            for(let i=0; i<maxHP; i++) { hpStr2 += (i < players[1].hp) ? "❤" : "🖤"; }
+            document.getElementById("hp-display-p2").innerText = hpStr2;
+        }
+    }
+
+    function loop() {
+        update(); draw();
+        if (isPlaying) gameLoop = requestAnimationFrame(loop);
+    }
+
+    function startGame(mode) {
+        initGame(mode); isPlaying = true; loop();
+    }
+
+    function gameOver() {
+        isPlaying = false;
+        cancelAnimationFrame(gameLoop);
+        document.getElementById("game-over-screen").style.display = "flex";
+        document.getElementById("final-score").innerText = `你到達了地下 ${score} 層`;
+    }
+
+    function resetToMenu() {
+        document.getElementById("game-over-screen").style.display = "none";
+        document.getElementById("start-screen").style.display = "flex";
+        ctx.clearRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+    }
+</script>
+
+</body>
+</html>

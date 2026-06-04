@@ -1,0 +1,1214 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>喵星人畫線大冒險 - Google Sites 穩定版 v4</title>
+<style>
+    :root {
+        --bg: #fbf5e9;
+        --surface: #fffdf8;
+        --fg: #3c3028;
+        --muted: #7b6b5c;
+        --border: #eadfce;
+        --accent: #d96d3e;
+        --btn-color: var(--accent);
+        --btn-shadow: #b84e28;
+        --btn-secondary: #EED9C4;
+        --btn-secondary-shadow: #D4B89F;
+        --btn-danger: #FFA69E;
+        --btn-danger-shadow: #E28880;
+        --font-display: "Trebuchet MS", "Noto Sans TC", "Microsoft JhengHei", system-ui, sans-serif;
+        --font-body: "Trebuchet MS", "Noto Sans TC", "Microsoft JhengHei", system-ui, sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+    html, body {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        height: 100%;
+        min-height: 620px;
+        background-color: var(--bg);
+        background-image:
+            linear-gradient(var(--border) 1.5px, transparent 1.5px),
+            linear-gradient(90deg, var(--border) 1.5px, transparent 1.5px);
+        background-size: 30px 30px;
+        font-family: var(--font-body);
+        color: var(--fg);
+        user-select: none;
+        -webkit-user-select: none;
+        overflow: hidden;
+        touch-action: none;
+    }
+
+    .blobs {
+        position: fixed;
+        inset: 0;
+        overflow: hidden;
+        pointer-events: none;
+        z-index: 0;
+    }
+    .blob {
+        position: absolute;
+        border-radius: 50%;
+        filter: blur(80px);
+        opacity: 0.55;
+    }
+    .blob-1 { top: -20%; left: -10%; width: 50vw; height: 50vw; background: #FFC371; animation: float 15s ease-in-out infinite alternate; }
+    .blob-2 { bottom: -20%; right: -10%; width: 60vw; height: 60vw; background: #A8E6CF; animation: float 20s ease-in-out infinite alternate-reverse; }
+    @keyframes float {
+        0% { transform: translate(0, 0) scale(1); }
+        100% { transform: translate(10%, 15%) scale(1.1); }
+    }
+
+    #app {
+        display: flex;
+        flex-direction: row;
+        width: 100%;
+        height: 100vh;
+        min-height: 620px;
+        max-width: 1400px;
+        margin: 0 auto;
+        position: relative;
+        z-index: 1;
+        padding: 24px;
+        gap: 24px;
+    }
+
+    .panel {
+        background: var(--surface);
+        width: 340px;
+        min-width: 340px;
+        padding: 24px 22px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        border: 4px solid #fff;
+        border-radius: 32px;
+        box-shadow: 0 20px 40px rgba(100, 70, 50, 0.10);
+        z-index: 10;
+        overflow-y: auto;
+    }
+
+    .title-emoji { font-size: 52px; margin-bottom: 4px; animation: bounce 2.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) infinite; }
+    @keyframes bounce {
+        0%, 100% { transform: translateY(0) scale(1); }
+        50% { transform: translateY(-10px) scale(1.05); }
+    }
+
+    .title-text {
+        font-family: var(--font-display);
+        font-size: 30px;
+        font-weight: 900;
+        color: var(--accent);
+        margin: 0 0 5px;
+        text-align: center;
+        text-shadow: 2px 2px 0 #fff;
+    }
+    .subtitle { font-size: 15px; color: var(--muted); font-weight: 700; text-align: center; margin: 0 0 20px; }
+
+    .level-box {
+        background: #fbf9f6;
+        border: 3px solid #EED9C4;
+        border-radius: 24px;
+        padding: 18px;
+        width: 100%;
+        margin-bottom: 18px;
+        box-shadow: inset 0 3px 8px rgba(0,0,0,0.03);
+    }
+    .level-title-row {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        border-bottom: 2px dashed #D4B89F;
+        padding-bottom: 10px;
+        margin-bottom: 12px;
+    }
+    .level-title { font-size: 24px; font-weight: 900; color: var(--accent); text-shadow: 1px 1px 0 #fff; }
+    .level-hint { font-size: 16px; color: var(--fg); line-height: 1.55; font-weight: 700; text-align: center; min-height: 72px; }
+
+    .btn {
+        font-family: inherit;
+        font-size: 17px;
+        font-weight: 800;
+        padding: 13px 18px;
+        background: var(--btn-color);
+        color: #fff;
+        border: none;
+        border-radius: 20px;
+        cursor: pointer;
+        box-shadow: 0 8px 0 var(--btn-shadow), 0 15px 20px rgba(0,0,0,0.10);
+        width: 100%;
+        margin-bottom: 14px;
+        transition: transform 0.12s ease, box-shadow 0.12s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+    }
+    .btn:active { transform: translateY(8px) scale(0.96); box-shadow: 0 0 0 var(--btn-shadow), 0 5px 10px rgba(0,0,0,0.10); }
+    .btn.secondary { background: var(--btn-secondary); color: var(--fg); box-shadow: 0 8px 0 var(--btn-secondary-shadow); }
+    .btn.secondary:active { box-shadow: 0 0 0 var(--btn-secondary-shadow); }
+    .btn.danger { background: var(--btn-danger); color: #7B322B; box-shadow: 0 8px 0 var(--btn-danger-shadow); }
+    .btn.danger:active { box-shadow: 0 0 0 var(--btn-danger-shadow); }
+
+    .controls { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-top: 10px; }
+    .ctrl-btn {
+        font-size: 28px;
+        padding: 14px 0;
+        border: none;
+        border-radius: 20px;
+        background: #fff;
+        color: var(--fg);
+        border: 2px solid var(--border);
+        box-shadow: 0 8px 0 var(--border), 0 5px 10px rgba(0,0,0,0.05);
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .ctrl-btn:active { transform: translateY(8px) scale(0.92); box-shadow: 0 0 0 var(--border); }
+
+    .bottom-tools { display: flex; gap: 12px; width: 100%; margin-top: auto; }
+    .bottom-tools .btn { margin-bottom: 0; padding: 12px; font-size: 14px; }
+
+    .interactive-area {
+        flex-grow: 1;
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 0;
+    }
+
+    #game-container {
+        position: relative;
+        width: 100%;
+        max-width: 900px;
+        aspect-ratio: 4 / 3;
+        background: var(--surface);
+        border-radius: 32px;
+        border: 8px solid #fff;
+        box-shadow: 0 20px 40px rgba(100, 70, 50, 0.10);
+        overflow: hidden;
+    }
+    #game-container::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background-image: radial-gradient(var(--border) 2.5px, transparent 2.5px);
+        background-size: 40px 40px;
+        pointer-events: none;
+        z-index: 0;
+        opacity: 0.7;
+    }
+
+    canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+        position: relative;
+        z-index: 1;
+        touch-action: none;
+        border-radius: 24px;
+    }
+
+    #message-overlay {
+        position: absolute;
+        inset: 0;
+        background: rgba(255, 255, 255, 0.58);
+        backdrop-filter: blur(12px);
+        display: none;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        z-index: 100;
+        border-radius: 24px;
+    }
+    .msg-title {
+        font-size: 52px;
+        font-weight: 900;
+        color: var(--accent);
+        margin-bottom: 28px;
+        text-shadow: 0 4px 15px rgba(255, 100, 50, 0.25);
+        animation: scaleIn 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        text-align: center;
+    }
+    @keyframes scaleIn {
+        0% { transform: scale(0.5); opacity: 0; }
+        80% { transform: scale(1.05); opacity: 1; }
+        100% { transform: scale(1); }
+    }
+
+    #tutorial-overlay {
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        z-index: 50;
+        display: none;
+    }
+    .tutorial-hand {
+        position: absolute;
+        font-size: 50px;
+        animation: swipe 2s infinite ease-in-out;
+        filter: drop-shadow(2px 6px 4px rgba(0,0,0,0.2));
+    }
+    @keyframes swipe {
+        0% { transform: translate(0, 0); opacity: 0; }
+        20% { opacity: 1; }
+        80% { transform: translate(150px, -50px); opacity: 1; }
+        100% { transform: translate(150px, -50px); opacity: 0; }
+    }
+
+    .status-pill {
+        font-size: 12px;
+        color: #6f5b4c;
+        background: #fff7e7;
+        border: 1px solid #eadfce;
+        border-radius: 999px;
+        padding: 6px 10px;
+        margin-top: 10px;
+        text-align: center;
+        line-height: 1.4;
+    }
+
+    :fullscreen #app { width: 100vw; height: 100vh; max-width: none; border-radius: 0; padding: 0; gap: 0; }
+    :fullscreen .panel { border-radius: 0; border: none; }
+    :fullscreen #game-container { max-width: none; height: 100%; max-height: 100vh; border-radius: 0; border: none; }
+    :fullscreen canvas { border-radius: 0; }
+
+    @media (max-width: 900px) {
+        html, body { min-height: 720px; overflow: auto; touch-action: manipulation; }
+        #app { flex-direction: column; height: auto; min-height: 100vh; padding: 12px; gap: 14px; }
+        .panel { width: 100%; min-width: 100%; padding: 16px; border-radius: 24px; }
+        .title-emoji { font-size: 42px; }
+        .title-text { font-size: 25px; }
+        .level-hint { min-height: auto; }
+        .interactive-area { width: 100%; }
+        #game-container { width: 100%; max-width: 100%; }
+        .bottom-tools { margin-top: 8px; }
+    }
+</style>
+</head>
+<body>
+
+<div class="blobs">
+    <div class="blob blob-1"></div>
+    <div class="blob blob-2"></div>
+</div>
+
+<div id="app">
+    <div class="panel">
+        <div class="title-emoji">🐱🖍️</div>
+        <h1 class="title-text">喵星人畫線大冒險</h1>
+        <p class="subtitle">Google Sites 穩定單檔版 v4</p>
+
+        <div class="level-box">
+            <div class="level-title-row">
+                <div id="ui-level" class="level-title">第 1 關</div>
+            </div>
+            <div id="ui-hint" class="level-hint">畫出一座橋，讓小貓走到門口！</div>
+
+            <div style="margin-top: 18px;">
+                <button class="btn danger" onclick="clearInk()">🗑️ 擦掉墨水</button>
+                <button class="btn secondary" onclick="resetLevel()">🔄 重新開始</button>
+            </div>
+
+            <div class="controls">
+                <button class="ctrl-btn" onpointerdown="moveLeft(true)" onpointerup="moveLeft(false)" onpointercancel="moveLeft(false)" onpointerleave="moveLeft(false)" oncontextmenu="return false;">⬅️</button>
+                <button class="ctrl-btn" onpointerdown="jump()" oncontextmenu="return false;">⬆️</button>
+                <button class="ctrl-btn" onpointerdown="moveRight(true)" onpointerup="moveRight(false)" onpointercancel="moveRight(false)" onpointerleave="moveRight(false)" oncontextmenu="return false;">➡️</button>
+            </div>
+            <p style="font-size: 13px; color: var(--muted); text-align: center; margin-top:12px; margin-bottom:0;">電腦可用方向鍵控制；手機可按下方按鈕。</p>
+            <div id="ui-ink" class="status-pill">v4：修正第 18 關，並加入墨水/筆畫限制。</div>
+        </div>
+
+        <div class="bottom-tools">
+            <button class="btn" style="background:#A1C4FD; box-shadow:0 8px 0 #82A8E2;" onclick="toggleFullscreen()">🔲 全螢幕</button>
+            <button class="btn secondary" onclick="resetAllProgress()">清除進度</button>
+        </div>
+    </div>
+
+    <div class="interactive-area">
+        <div id="game-container">
+            <canvas id="game" width="800" height="600" aria-label="喵星人畫線遊戲畫布"></canvas>
+            <div id="tutorial-overlay">
+                <div id="tutorial-hand" class="tutorial-hand" style="left: 30%; top: 60%;">👆</div>
+            </div>
+            <div id="message-overlay">
+                <div class="msg-title">🎉 過關了！</div>
+                <button class="btn" style="max-width: 210px; font-size: 21px; padding: 18px;" onclick="nextLevel()">下一關 ➡️</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+"use strict";
+
+const LEVELS = [
+    {
+        title: "第 1 關：初次提筆", hint: "按住滑鼠或手指，畫出一座橋讓小貓走到右邊的門！", tutorial: true,
+        cat: { x: 100, y: 400 }, door: { x: 700, y: 400 },
+        walls: [ { x: 150, y: 500, w: 300, h: 200 }, { x: 650, y: 500, w: 300, h: 200 } ]
+    },
+    {
+        title: "第 2 關：步步高升", hint: "門在上面，畫個斜坡或是階梯讓小貓走上去吧。",
+        cat: { x: 100, y: 500 }, door: { x: 700, y: 200 },
+        walls: [ { x: 150, y: 550, w: 300, h: 100 }, { x: 700, y: 250, w: 200, h: 100 } ]
+    },
+    {
+        title: "第 3 關：天降危機", hint: "v3 修正：一開始會有約 3 秒安全時間。先在小貓頭上畫一個斜屋頂或平台擋住掉落物。",
+        cat: { x: 100, y: 500 }, door: { x: 700, y: 500 },
+        walls: [ { x: 400, y: 550, w: 800, h: 100 } ],
+        hazards: [ { x: 110, y: -220, w: 85, h: 85, delay: 180 }, { x: 410, y: -260, w: 70, h: 70, delay: 120 } ]
+    },
+    {
+        title: "第 4 關：鑽過縫隙", hint: "不能畫太高，不然小貓會撞到頭過不去喔！",
+        cat: { x: 100, y: 400 }, door: { x: 700, y: 400 },
+        walls: [ { x: 150, y: 500, w: 300, h: 200 }, { x: 650, y: 500, w: 300, h: 200 }, { x: 400, y: 150, w: 200, h: 380 } ]
+    },
+    {
+        title: "第 5 關：空中跳板", hint: "v4：一筆不能畫太長。畫 2～3 個短踏板，再按右鍵與跳躍前進。",
+        cat: { x: 80, y: 358 }, door: { x: 710, y: 200 },
+        walls: [ { x: 100, y: 490, w: 200, h: 220 }, { x: 710, y: 320, w: 200, h: 160 } ],
+        inkLimit: 380, strokeLimit: 155
+    },
+    {
+        title: "第 6 關：接住方塊", hint: "方塊會掉進深淵！先畫一條線接住它，再把它當成橋。",
+        cat: { x: 100, y: 400 }, door: { x: 700, y: 400 },
+        walls: [ { x: 100, y: 500, w: 200, h: 200 }, { x: 700, y: 500, w: 200, h: 200 } ],
+        hazards: [ { x: 400, y: -120, w: 100, h: 100, delay: 80 } ]
+    },
+    {
+        title: "第 7 關：深谷繞行", hint: "中間的柱子太高了，畫條繩索或是兜圈子繞過底下吧。",
+        cat: { x: 100, y: 200 }, door: { x: 700, y: 200 },
+        walls: [ { x: 100, y: 300, w: 200, h: 100 }, { x: 700, y: 300, w: 200, h: 100 }, { x: 400, y: 500, w: 50, h: 400 } ]
+    },
+    {
+        title: "第 8 關：低橋地下通道", hint: "v3 修正：上方有大石板，下面留有通道。畫一條低低的橋，讓小貓從下面鑽過去。",
+        cat: { x: 100, y: 400 }, door: { x: 700, y: 400 },
+        walls: [ { x: 100, y: 500, w: 200, h: 100 }, { x: 700, y: 500, w: 200, h: 100 }, { x: 400, y: 230, w: 500, h: 280 } ]
+    },
+    {
+        title: "第 9 關：小心尖刺", hint: "紅色的尖刺碰到了會受傷重來！畫個護盾或橋樑避開它們。",
+        cat: { x: 100, y: 400 }, door: { x: 700, y: 400 },
+        walls: [ { x: 400, y: 500, w: 800, h: 100 } ],
+        spikes: [ { x: 400, y: 425, w: 300, h: 50 } ]
+    },
+    {
+        title: "第 10 關：突破重圍", hint: "小貓被關住了？不，上面是開著的！",
+        cat: { x: 100, y: 400 }, door: { x: 700, y: 400 },
+        walls: [ { x: 100, y: 500, w: 200, h: 100 }, { x: 250, y: 350, w: 50, h: 300 }, { x: 700, y: 500, w: 200, h: 100 }, { x: 550, y: 350, w: 50, h: 300 } ]
+    },
+    {
+        title: "第 11 關：超級彈跳", hint: "綠色的墊子是彈跳床！踩上去會飛得很高喔！",
+        cat: { x: 100, y: 400 }, door: { x: 700, y: 100 },
+        walls: [ { x: 100, y: 500, w: 200, h: 100 }, { x: 700, y: 200, w: 200, h: 100 } ],
+        bouncers: [ { x: 400, y: 500, w: 100, h: 50 } ]
+    },
+    {
+        title: "第 12 關：彈跳連環", hint: "引導小貓在彈跳床之間穿梭。",
+        cat: { x: 50, y: 100 }, door: { x: 750, y: 100 },
+        walls: [ { x: 50, y: 200, w: 100, h: 50 }, { x: 750, y: 200, w: 100, h: 50 } ],
+        bouncers: [ { x: 250, y: 500, w: 100, h: 50 }, { x: 550, y: 500, w: 100, h: 50 } ],
+        spikes: [ { x: 400, y: 550, w: 800, h: 50 } ],
+        inkLimit: 500, strokeLimit: 170
+    },
+    {
+        title: "第 13 關：動態平台", hint: "藍色的平台會移動！抓準時機跳上去，或是自己畫橋連結。",
+        cat: { x: 100, y: 400 }, door: { x: 700, y: 400 },
+        walls: [ { x: 100, y: 500, w: 200, h: 100 }, { x: 700, y: 500, w: 200, h: 100 } ],
+        movers: [ { x: 400, y: 500, w: 150, h: 30, rx: 150, ry: 0, speed: 0.02 } ],
+        inkLimit: 430, strokeLimit: 220
+    },
+    {
+        title: "第 14 關：電梯上下", hint: "這次平台是上下移動的，小心不要被壓扁喔。",
+        cat: { x: 100, y: 500 }, door: { x: 700, y: 100 },
+        walls: [ { x: 100, y: 550, w: 200, h: 50 }, { x: 700, y: 150, w: 200, h: 50 } ],
+        movers: [ { x: 400, y: 350, w: 100, h: 30, rx: 0, ry: 200, speed: 0.02 } ],
+        spikes: [ { x: 400, y: 580, w: 400, h: 50 } ],
+        inkLimit: 460, strokeLimit: 220
+    },
+    {
+        title: "第 15 關：天降尖刺", hint: "尖刺也會掉下來！v3 加了緩衝時間，先畫屋頂保護小貓。",
+        cat: { x: 100, y: 400 }, door: { x: 700, y: 400 },
+        walls: [ { x: 400, y: 500, w: 800, h: 100 } ],
+        hazards: [ { x: 300, y: -180, w: 80, h: 80, isSpike: true, delay: 150 }, { x: 500, y: -260, w: 80, h: 80, isSpike: true, delay: 220 } ]
+    },
+    {
+        title: "第 16 關：移動的彈跳床", hint: "移動加上彈跳！精準地降落在上面吧。",
+        cat: { x: 50, y: 100 }, door: { x: 750, y: 100 },
+        walls: [ { x: 50, y: 200, w: 100, h: 50 }, { x: 750, y: 200, w: 100, h: 50 } ],
+        movers: [ { x: 400, y: 500, w: 150, h: 30, rx: 200, ry: 0, speed: 0.03, isBouncer: true } ],
+        spikes: [ { x: 400, y: 580, w: 800, h: 50 } ],
+        inkLimit: 520, strokeLimit: 175
+    },
+    {
+        title: "第 17 關：迷宮通道", hint: "善用你畫出的線條，把掉落的方塊引導到深淵，讓出道路。",
+        cat: { x: 100, y: 100 }, door: { x: 700, y: 500 },
+        walls: [ { x: 100, y: 200, w: 200, h: 50 }, { x: 700, y: 550, w: 200, h: 50 }, { x: 350, y: 350, w: 400, h: 50 } ],
+        hazards: [ { x: 300, y: 50, w: 100, h: 100 } ]
+    },
+    {
+        title: "第 18 關：夾縫求生", hint: "v4：改成可過版。不能畫一條超長直線，請畫兩段短橋，踩中間平台，等藍色機關移開再通過。",
+        cat: { x: 100, y: 400 }, door: { x: 700, y: 400 },
+        walls: [ { x: 100, y: 500, w: 200, h: 100 }, { x: 400, y: 500, w: 120, h: 100 }, { x: 700, y: 500, w: 200, h: 100 }, { x: 400, y: 230, w: 620, h: 120 } ],
+        movers: [ { x: 400, y: 350, w: 80, h: 60, rx: 170, ry: 0, speed: 0.018 } ],
+        inkLimit: 430, strokeLimit: 185
+    },
+    {
+        title: "第 19 關：精準彈跳", hint: "必須畫出最完美的軌跡，利用彈跳床飛躍障礙。",
+        cat: { x: 50, y: 100 }, door: { x: 750, y: 500 },
+        walls: [ { x: 50, y: 150, w: 100, h: 50 }, { x: 750, y: 550, w: 100, h: 50 } ],
+        spikes: [ { x: 200, y: 300, w: 50, h: 50 }, { x: 600, y: 400, w: 50, h: 50 } ],
+        bouncers: [ { x: 400, y: 550, w: 100, h: 50 } ],
+        inkLimit: 520, strokeLimit: 230
+    },
+    {
+        title: "第 20 關：最後試煉", hint: "運用你所有的知識，突破重重機關抵達終點！恭喜你即將破關！",
+        cat: { x: 50, y: 500 }, door: { x: 750, y: 100 },
+        walls: [ { x: 50, y: 550, w: 100, h: 50 }, { x: 750, y: 150, w: 100, h: 50 } ],
+        spikes: [ { x: 400, y: 580, w: 800, h: 50 }, { x: 400, y: 20, w: 800, h: 50 } ], 
+        movers: [ { x: 250, y: 350, w: 100, h: 30, rx: 0, ry: 150, speed: 0.02 }, { x: 550, y: 350, w: 100, h: 30, rx: 0, ry: 150, speed: 0.02, isBouncer: true } ],
+        inkLimit: 560, strokeLimit: 200
+    }
+];
+
+const GAME_W = 800;
+const GAME_H = 600;
+const CAT_R = 22;
+const INK_THICKNESS = 16;
+const safeStorage = {
+    memory: {},
+    getItem(key) {
+        try { return window.localStorage.getItem(key); }
+        catch (e) { return this.memory[key] || null; }
+    },
+    setItem(key, value) {
+        try { window.localStorage.setItem(key, value); }
+        catch (e) { this.memory[key] = String(value); }
+    }
+};
+
+let audioCtx = null;
+function ensureAudio() {
+    try {
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        if (audioCtx.state === "suspended") audioCtx.resume();
+    } catch (e) {
+        audioCtx = null;
+    }
+}
+function playSound(type) {
+    try {
+        ensureAudio();
+        if (!audioCtx) return;
+        const now = audioCtx.currentTime;
+        const makeTone = (freq, dur, wave = "sine", gainValue = 0.05, endFreq = null) => {
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = wave;
+            osc.frequency.setValueAtTime(freq, now);
+            if (endFreq) osc.frequency.exponentialRampToValueAtTime(endFreq, now + dur);
+            gain.gain.setValueAtTime(gainValue, now);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + dur);
+            osc.connect(gain).connect(audioCtx.destination);
+            osc.start(now);
+            osc.stop(now + dur);
+        };
+        if (type === "draw") makeTone(600, 0.08, "sine", 0.035, 300);
+        if (type === "jump") makeTone(420, 0.13, "sine", 0.055, 760);
+        if (type === "bounce") makeTone(320, 0.18, "sine", 0.08, 850);
+        if (type === "die") makeTone(160, 0.28, "sawtooth", 0.075, 60);
+        if (type === "win") {
+            [523.25, 659.25, 783.99, 1046.5].forEach((freq, i) => {
+                setTimeout(() => makeTone(freq, 0.25, "sine", 0.04), i * 90);
+            });
+        }
+    } catch (e) {
+        console.warn("Audio play failed:", e);
+    }
+}
+
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+const overlay = document.getElementById("message-overlay");
+const tutorial = document.getElementById("tutorial-overlay");
+
+let currentLevel = parseInt(safeStorage.getItem("skyCatLevelStable") || safeStorage.getItem("skyCatLevel") || "0", 10);
+if (Number.isNaN(currentLevel) || currentLevel < 0 || currentLevel >= LEVELS.length) currentLevel = 0;
+
+let cat;
+let door;
+let walls = [];
+let spikes = [];
+let bouncers = [];
+let movers = [];
+let hazards = [];
+let inkPaths = [];
+let currentInkUsed = 0;
+let isDrawing = false;
+let currentPath = [];
+let isLevelComplete = false;
+let isDead = false;
+let confetti = [];
+let lastTime = 0;
+let btnLeft = false;
+let btnRight = false;
+const keys = { ArrowLeft: false, ArrowRight: false, ArrowUp: false, " ": false };
+
+function clamp(value, min, max) {
+    return Math.max(min, Math.min(max, value));
+}
+function rectFromCenter(r) {
+    return { left: r.x - r.w / 2, right: r.x + r.w / 2, top: r.y - r.h / 2, bottom: r.y + r.h / 2 };
+}
+function circleHitsRect(c, r) {
+    const rr = rectFromCenter(r);
+    const closestX = clamp(c.x, rr.left, rr.right);
+    const closestY = clamp(c.y, rr.top, rr.bottom);
+    const dx = c.x - closestX;
+    const dy = c.y - closestY;
+    return dx * dx + dy * dy <= c.r * c.r;
+}
+function segmentClosestPoint(px, py, a, b) {
+    const vx = b.x - a.x;
+    const vy = b.y - a.y;
+    const len2 = vx * vx + vy * vy || 1;
+    const t = clamp(((px - a.x) * vx + (py - a.y) * vy) / len2, 0, 1);
+    return { x: a.x + vx * t, y: a.y + vy * t, t };
+}
+
+function resolveCircleRect(c, r, opt = {}) {
+    const rr = rectFromCenter(r);
+    const closestX = clamp(c.x, rr.left, rr.right);
+    const closestY = clamp(c.y, rr.top, rr.bottom);
+    let dx = c.x - closestX;
+    let dy = c.y - closestY;
+    let dist = Math.hypot(dx, dy);
+
+    if (dist >= c.r) return false;
+
+    let nx, ny, overlap;
+    if (dist < 0.0001) {
+        const leftPen = Math.abs(c.x - rr.left);
+        const rightPen = Math.abs(rr.right - c.x);
+        const topPen = Math.abs(c.y - rr.top);
+        const bottomPen = Math.abs(rr.bottom - c.y);
+        const minPen = Math.min(leftPen, rightPen, topPen, bottomPen);
+        if (minPen === topPen) { nx = 0; ny = -1; overlap = c.r + topPen; }
+        else if (minPen === bottomPen) { nx = 0; ny = 1; overlap = c.r + bottomPen; }
+        else if (minPen === leftPen) { nx = -1; ny = 0; overlap = c.r + leftPen; }
+        else { nx = 1; ny = 0; overlap = c.r + rightPen; }
+    } else {
+        nx = dx / dist;
+        ny = dy / dist;
+        overlap = c.r - dist;
+    }
+
+    c.x += nx * overlap;
+    c.y += ny * overlap;
+
+    const vn = c.vx * nx + c.vy * ny;
+    if (vn < 0) {
+        c.vx -= vn * nx;
+        c.vy -= vn * ny;
+    }
+
+    if (ny < -0.45) {
+        c.onGround = true;
+        c.groundVX = opt.dx || 0;
+        c.groundVY = opt.dy || 0;
+        c.vx *= 0.90;
+    }
+    return true;
+}
+
+function resolveCircleSegment(c, a, b) {
+    const p = segmentClosestPoint(c.x, c.y, a, b);
+    let dx = c.x - p.x;
+    let dy = c.y - p.y;
+    let dist = Math.hypot(dx, dy);
+    const hitR = c.r + INK_THICKNESS / 2;
+
+    if (dist >= hitR) return false;
+    if (dist < 0.0001) {
+        const sx = b.x - a.x;
+        const sy = b.y - a.y;
+        const sl = Math.hypot(sx, sy) || 1;
+        dx = -sy / sl;
+        dy = sx / sl;
+        dist = 1;
+    }
+    const nx = dx / dist;
+    const ny = dy / dist;
+    const overlap = hitR - dist;
+    c.x += nx * overlap;
+    c.y += ny * overlap;
+
+    const vn = c.vx * nx + c.vy * ny;
+    if (vn < 0) {
+        c.vx -= vn * nx;
+        c.vy -= vn * ny;
+    }
+    if (ny < -0.35) {
+        c.onGround = true;
+        c.vx *= 0.96;
+    }
+    return true;
+}
+
+function resolveHazardRect(h, r) {
+    const a = rectFromCenter(h), b = rectFromCenter(r);
+    const ox = Math.min(a.right - b.left, b.right - a.left);
+    const oy = Math.min(a.bottom - b.top, b.bottom - a.top);
+    if (ox <= 0 || oy <= 0) return false;
+    if (oy < ox) {
+        if (h.y < r.y) {
+            h.y -= oy;
+            if (h.vy > 0) h.vy = 0;
+            h.onGround = true;
+        } else {
+            h.y += oy;
+            if (h.vy < 0) h.vy = 0;
+        }
+    } else {
+        h.x += h.x < r.x ? -ox : ox;
+        h.vx = 0;
+    }
+    return true;
+}
+
+function resolveHazardLines(h) {
+    const bottomPoints = [
+        {x: h.x - h.w * 0.38, y: h.y + h.h / 2},
+        {x: h.x, y: h.y + h.h / 2},
+        {x: h.x + h.w * 0.38, y: h.y + h.h / 2}
+    ];
+    for (const path of inkPaths) {
+        for (let i = 0; i < path.length - 1; i++) {
+            const a = path[i], b = path[i + 1];
+            for (const pnt of bottomPoints) {
+                const p = segmentClosestPoint(pnt.x, pnt.y, a, b);
+                const d = Math.hypot(pnt.x - p.x, pnt.y - p.y);
+                if (d < INK_THICKNESS + 5 && h.vy >= 0 && p.y >= h.y - h.h / 2) {
+                    h.y -= (INK_THICKNESS + 5 - d);
+                    h.vy = 0;
+                    h.onGround = true;
+                    return true;
+                }
+            }
+        }
+    }
+    return false;
+}
+
+function getPointerPos(e) {
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = GAME_W / rect.width;
+    const scaleY = GAME_H / rect.height;
+    return { x: (e.clientX - rect.left) * scaleX, y: (e.clientY - rect.top) * scaleY };
+}
+
+function setControlListeners() {
+    window.addEventListener("keydown", e => {
+        if (e.key in keys) {
+            keys[e.key] = true;
+            e.preventDefault();
+        }
+    }, { passive: false });
+    window.addEventListener("keyup", e => {
+        if (e.key in keys) {
+            keys[e.key] = false;
+            e.preventDefault();
+        }
+    }, { passive: false });
+
+    canvas.addEventListener("pointerdown", e => {
+        if (isLevelComplete || isDead) return;
+        ensureAudio();
+        isDrawing = true;
+        currentPath = [getPointerPos(e)];
+        canvas.setPointerCapture?.(e.pointerId);
+        e.preventDefault();
+    }, { passive: false });
+
+    canvas.addEventListener("pointermove", e => {
+        if (!isDrawing) return;
+        let pos = getPointerPos(e);
+        const last = currentPath[currentPath.length - 1];
+        const d = Math.hypot(pos.x - last.x, pos.y - last.y);
+        if (d > 8) {
+            const currentStroke = pathLength(currentPath);
+            const allowed = Math.min(getStrokeLimit(), getInkLimit() - currentInkUsed) - currentStroke;
+            if (allowed > 0) {
+                if (d > allowed) {
+                    const t = allowed / d;
+                    pos = { x: last.x + (pos.x - last.x) * t, y: last.y + (pos.y - last.y) * t };
+                }
+                currentPath.push(pos);
+                updateInkDisplay();
+            }
+        }
+        e.preventDefault();
+    }, { passive: false });
+
+    const endDraw = e => {
+        if (!isDrawing) return;
+        isDrawing = false;
+        if (currentPath.length > 1) {
+            const simplified = simplifyPath(currentPath);
+            const allowed = Math.min(getStrokeLimit(), getInkLimit() - currentInkUsed);
+            const limited = fitPathToLength(simplified, allowed);
+            const len = pathLength(limited);
+            if (limited.length > 1 && len >= 12) {
+                inkPaths.push(limited);
+                currentInkUsed += len;
+                playSound("draw");
+            }
+        }
+        currentPath = [];
+        updateInkDisplay();
+        e?.preventDefault?.();
+    };
+    canvas.addEventListener("pointerup", endDraw, { passive: false });
+    canvas.addEventListener("pointercancel", endDraw, { passive: false });
+    window.addEventListener("pointerup", endDraw, { passive: false });
+}
+
+function simplifyPath(path) {
+    if (path.length <= 2) return path.slice();
+    const out = [path[0]];
+    for (let i = 1; i < path.length - 1; i++) {
+        const last = out[out.length - 1];
+        if (Math.hypot(path[i].x - last.x, path[i].y - last.y) >= 10) out.push(path[i]);
+    }
+    out.push(path[path.length - 1]);
+    return out;
+}
+
+function pathLength(path) {
+    let total = 0;
+    for (let i = 0; i < path.length - 1; i++) total += Math.hypot(path[i + 1].x - path[i].x, path[i + 1].y - path[i].y);
+    return total;
+}
+function currentLevelData() {
+    return LEVELS[currentLevel] || {};
+}
+function getInkLimit() {
+    const limit = currentLevelData().inkLimit;
+    return Number.isFinite(limit) ? limit : 9999;
+}
+function getStrokeLimit() {
+    const limit = currentLevelData().strokeLimit;
+    return Number.isFinite(limit) ? limit : getInkLimit();
+}
+function fitPathToLength(path, maxLen) {
+    if (!Number.isFinite(maxLen) || maxLen >= 9000) return path.slice();
+    if (maxLen <= 0 || path.length < 2) return path.slice(0, 1);
+    const out = [path[0]];
+    let used = 0;
+    for (let i = 0; i < path.length - 1; i++) {
+        const a = path[i], b = path[i + 1];
+        const d = Math.hypot(b.x - a.x, b.y - a.y);
+        if (d < 0.001) continue;
+        if (used + d <= maxLen) {
+            out.push(b);
+            used += d;
+        } else {
+            const t = clamp((maxLen - used) / d, 0, 1);
+            out.push({ x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t });
+            break;
+        }
+    }
+    return out;
+}
+function updateInkDisplay() {
+    const el = document.getElementById("ui-ink");
+    if (!el) return;
+    const lvl = currentLevelData();
+    const currentStroke = isDrawing ? pathLength(currentPath) : 0;
+    if (!Number.isFinite(lvl.inkLimit) && !Number.isFinite(lvl.strokeLimit)) {
+        el.textContent = "v4：此關自由畫線。後面部分關卡會限制單筆長度，避免一條直線通關。";
+        return;
+    }
+    const remaining = Math.max(0, Math.round(getInkLimit() - currentInkUsed - currentStroke));
+    const stroke = Number.isFinite(lvl.strokeLimit) ? `｜單筆上限 ${Math.round(lvl.strokeLimit)}` : "";
+    el.textContent = `墨水剩餘 ${remaining}${stroke}。長線會自動截斷，請改用短橋、平台或斜坡。`;
+}
+
+function moveLeft(state) { btnLeft = state; ensureAudio(); }
+function moveRight(state) { btnRight = state; ensureAudio(); }
+function jump() {
+    ensureAudio();
+    if (cat && cat.onGround && !isLevelComplete && !isDead) {
+        cat.vy = -11.6;
+        cat.onGround = false;
+        playSound("jump");
+    }
+}
+
+function clearInk() {
+    inkPaths = [];
+    currentInkUsed = 0;
+    currentPath = [];
+    updateInkDisplay();
+    playSound("draw");
+}
+function resetLevel() {
+    loadLevel(currentLevel);
+}
+function resetAllProgress() {
+    if (confirm("確定要清除所有關卡紀錄，從第1關重新開始嗎？")) {
+        currentLevel = 0;
+        safeStorage.setItem("skyCatLevelStable", 0);
+        safeStorage.setItem("skyCatLevel", 0);
+        loadLevel(0);
+    }
+}
+function toggleFullscreen() {
+    const root = document.documentElement;
+    try {
+        if (!document.fullscreenElement) {
+            root.requestFullscreen?.();
+        } else {
+            document.exitFullscreen?.();
+        }
+    } catch (e) {
+        alert("Google Sites 內嵌模式可能不允許全螢幕，請改用瀏覽器全螢幕或放大嵌入框。");
+    }
+}
+
+function loadLevel(idx) {
+    const lvl = LEVELS[idx];
+    overlay.style.display = "none";
+    tutorial.style.display = lvl.tutorial ? "block" : "none";
+    document.getElementById("ui-level").innerText = `第 ${idx + 1} 關`;
+    document.getElementById("ui-hint").innerText = lvl.hint;
+
+    cat = { x: lvl.cat.x, y: lvl.cat.y, vx: 0, vy: 0, r: CAT_R, onGround: false, groundVX: 0, groundVY: 0 };
+    door = { x: lvl.door.x, y: lvl.door.y, w: 60, h: 80 };
+    walls = (lvl.walls || []).map(w => ({...w, kind: "wall"}));
+    spikes = (lvl.spikes || []).map(s => ({...s, kind: "spike"}));
+    bouncers = (lvl.bouncers || []).map(b => ({...b, kind: "bouncer"}));
+    movers = (lvl.movers || []).map(m => ({...m, baseX: m.x, baseY: m.y, dx: 0, dy: 0, px: m.x, py: m.y, kind: m.isBouncer ? "bouncer" : "mover"}));
+    hazards = (lvl.hazards || []).map(h => ({...h, vx: 0, vy: 0, onGround: false, kind: h.isSpike ? "falling-spike" : "hazard"}));
+    inkPaths = [];
+    currentInkUsed = 0;
+    currentPath = [];
+    isDrawing = false;
+    isLevelComplete = false;
+    isDead = false;
+    confetti = [];
+    updateInkDisplay();
+}
+
+function die() {
+    if (isDead || isLevelComplete) return;
+    isDead = true;
+    playSound("die");
+    setTimeout(() => loadLevel(currentLevel), 650);
+}
+
+function levelComplete() {
+    if (isLevelComplete || isDead) return;
+    isLevelComplete = true;
+    playSound("win");
+    const saved = parseInt(safeStorage.getItem("skyCatLevelStable") || "0", 10) || 0;
+    if (currentLevel + 1 > saved && currentLevel + 1 < LEVELS.length) {
+        safeStorage.setItem("skyCatLevelStable", currentLevel + 1);
+        safeStorage.setItem("skyCatLevel", currentLevel + 1);
+    }
+    overlay.style.display = "flex";
+    makeConfetti();
+}
+function nextLevel() {
+    currentLevel++;
+    if (currentLevel >= LEVELS.length) {
+        currentLevel = 0;
+        safeStorage.setItem("skyCatLevelStable", 0);
+        safeStorage.setItem("skyCatLevel", 0);
+        alert("🎉 太神啦！你通關了所有挑戰！喵星人非常感謝你！");
+    }
+    loadLevel(currentLevel);
+}
+
+function update(dt) {
+    const t = performance.now();
+    for (const m of movers) {
+        m.px = m.x; m.py = m.y;
+        m.x = m.baseX + Math.sin(t * (m.speed || 0.02)) * (m.rx || 0);
+        m.y = m.baseY + Math.cos(t * (m.speed || 0.02)) * (m.ry || 0);
+        m.dx = m.x - m.px;
+        m.dy = m.y - m.py;
+    }
+
+    if (!isDead && !isLevelComplete) {
+        const moveForce = 0.55;
+        const maxVX = 5.2;
+        if (keys.ArrowLeft || btnLeft) cat.vx -= moveForce * dt;
+        if (keys.ArrowRight || btnRight) cat.vx += moveForce * dt;
+        cat.vx = clamp(cat.vx, -maxVX, maxVX);
+        if (keys.ArrowUp || keys[" "]) {
+            keys.ArrowUp = false;
+            keys[" "] = false;
+            jump();
+        }
+
+        cat.vy += 0.58 * dt;
+        cat.vx *= cat.onGround ? 0.90 : 0.985;
+        cat.x += cat.vx * dt;
+        cat.y += cat.vy * dt;
+        cat.onGround = false;
+        cat.groundVX = 0;
+        cat.groundVY = 0;
+
+        if (cat.x < CAT_R) { cat.x = CAT_R; cat.vx = Math.max(0, cat.vx); }
+        if (cat.x > GAME_W - CAT_R) { cat.x = GAME_W - CAT_R; cat.vx = Math.min(0, cat.vx); }
+
+        for (const w of walls) resolveCircleRect(cat, w);
+        for (const b of bouncers) {
+            if (resolveCircleRect(cat, b) && cat.onGround) {
+                cat.vy = -13.5;
+                cat.onGround = false;
+                playSound("bounce");
+            }
+        }
+        for (const m of movers) {
+            const hit = resolveCircleRect(cat, m, { dx: m.dx, dy: m.dy });
+            if (hit && m.isBouncer && cat.vy >= -1) {
+                cat.vy = -13.5;
+                cat.onGround = false;
+                playSound("bounce");
+            }
+            if (hit && cat.onGround && m.dy <= 6) {
+                cat.x += m.dx;
+                cat.y += Math.min(0, m.dy);
+            }
+        }
+
+        for (const path of inkPaths) {
+            for (let i = 0; i < path.length - 1; i++) resolveCircleSegment(cat, path[i], path[i + 1]);
+        }
+
+        for (const s of spikes) if (circleHitsRect(cat, s)) die();
+
+        for (const h of hazards) {
+            if ((h.delay || 0) > 0) {
+                h.delay = Math.max(0, h.delay - dt);
+                continue;
+            }
+            h.vy += 0.42 * dt;
+            h.vx *= 0.99;
+            h.x += h.vx * dt;
+            h.y += h.vy * dt;
+            h.onGround = false;
+            for (const w of walls) resolveHazardRect(h, w);
+            for (const b of bouncers) resolveHazardRect(h, b);
+            for (const m of movers) resolveHazardRect(h, m);
+            resolveHazardLines(h);
+            if (circleHitsRect(cat, h)) {
+                if (h.isSpike) die();
+                else resolveCircleRect(cat, h);
+            }
+        }
+
+        if (circleHitsRect(cat, door)) levelComplete();
+        if (cat.y > 850) die();
+    }
+
+    updateConfetti(dt);
+}
+
+function updateConfetti(dt) {
+    for (const p of confetti) {
+        p.x += p.vx * dt;
+        p.y += p.vy * dt;
+        p.vy += 0.32 * dt;
+        p.rot += p.rotSpeed * dt;
+        p.life -= dt;
+    }
+    confetti = confetti.filter(p => p.life > 0 && p.y < GAME_H + 60);
+}
+function makeConfetti() {
+    confetti = [];
+    const colors = ["#FFC371", "#FF9A9E", "#A1C4FD", "#A8E6CF", "#FBC2EB"];
+    for (let i = 0; i < 90; i++) {
+        confetti.push({
+            x: GAME_W / 2, y: GAME_H / 2 + 40,
+            vx: (Math.random() - 0.5) * 18,
+            vy: (Math.random() - 1) * 18 - 4,
+            size: Math.random() * 10 + 7,
+            color: colors[Math.floor(Math.random() * colors.length)],
+            rot: Math.random() * 360,
+            rotSpeed: (Math.random() - 0.5) * 12,
+            life: 170
+        });
+    }
+}
+
+function drawRoundedRect(x, y, w, h, r, fill, stroke) {
+    const left = x - w / 2, top = y - h / 2;
+    ctx.beginPath();
+    ctx.roundRect(left, top, w, h, r);
+    ctx.fillStyle = fill;
+    ctx.fill();
+    if (stroke) {
+        ctx.strokeStyle = stroke;
+        ctx.lineWidth = 3;
+        ctx.stroke();
+    }
+}
+function drawBackground() {
+    ctx.clearRect(0, 0, GAME_W, GAME_H);
+    ctx.save();
+    ctx.globalAlpha = 0.55;
+    ctx.fillStyle = "#eadfce";
+    for (let x = 0; x < GAME_W; x += 40) {
+        for (let y = 0; y < GAME_H; y += 40) {
+            ctx.beginPath();
+            ctx.arc(x, y, 2.2, 0, Math.PI * 2);
+            ctx.fill();
+        }
+    }
+    ctx.restore();
+}
+function drawWorld() {
+    drawBackground();
+
+    for (const w of walls) drawRoundedRect(w.x, w.y, w.w, w.h, 10, "#EED9C4", "#D4B89F");
+    for (const s of spikes) drawSpikes(s);
+    for (const b of bouncers) drawRoundedRect(b.x, b.y, b.w, b.h, 12, "#A8E6CF", "#86CDB3");
+    for (const m of movers) drawRoundedRect(m.x, m.y, m.w, m.h, 10, m.isBouncer ? "#A8E6CF" : "#A1C4FD", m.isBouncer ? "#86CDB3" : "#82A8E2");
+    for (const h of hazards) {
+        if ((h.delay || 0) > 0) {
+            ctx.save();
+            ctx.font = "30px 'Segoe UI Emoji', 'Apple Color Emoji', 'Noto Color Emoji', sans-serif";
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            ctx.fillText("⚠️", h.x, 34);
+            ctx.restore();
+            continue;
+        }
+        if (h.isSpike) drawSpikes(h);
+        else drawRoundedRect(h.x, h.y, h.w, h.h, 8, "#FFD3B6", "#E0B598");
+    }
+
+    drawInkPathList(inkPaths, "#FF9A62", true);
+    if (isDrawing && currentPath.length > 1) drawInkPathList([currentPath], "#FFB27F", true);
+
+    ctx.save();
+    ctx.font = "55px 'Segoe UI Emoji', 'Apple Color Emoji', 'Noto Color Emoji', sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    const scale = 1 + Math.sin(performance.now() * 0.005) * 0.08;
+    ctx.translate(door.x, door.y);
+    ctx.scale(scale, scale);
+    ctx.shadowColor = "rgba(255, 230, 100, 0.8)";
+    ctx.shadowBlur = 20;
+    ctx.fillText("🚪", 0, 5);
+    ctx.restore();
+
+    drawCat();
+    drawConfetti();
+}
+function drawSpikes(s) {
+    const rr = rectFromCenter(s);
+    ctx.save();
+    ctx.fillStyle = "#FFA69E";
+    ctx.strokeStyle = "#E28880";
+    ctx.lineWidth = 3;
+    const count = Math.max(2, Math.round(s.w / 36));
+    const step = s.w / count;
+    ctx.beginPath();
+    ctx.moveTo(rr.left, rr.bottom);
+    for (let i = 0; i < count; i++) {
+        ctx.lineTo(rr.left + step * (i + 0.5), rr.top);
+        ctx.lineTo(rr.left + step * (i + 1), rr.bottom);
+    }
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    ctx.restore();
+}
+function drawInkPathList(paths, color, glow) {
+    ctx.save();
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    ctx.lineWidth = INK_THICKNESS;
+    ctx.strokeStyle = color;
+    if (glow) {
+        ctx.shadowColor = "rgba(255, 120, 50, 0.60)";
+        ctx.shadowBlur = 12;
+    }
+    for (const path of paths) {
+        if (path.length < 2) continue;
+        ctx.beginPath();
+        ctx.moveTo(path[0].x, path[0].y);
+        for (let i = 1; i < path.length; i++) ctx.lineTo(path[i].x, path[i].y);
+        ctx.stroke();
+    }
+    ctx.restore();
+}
+function drawCat() {
+    if (!cat) return;
+    ctx.save();
+    ctx.translate(cat.x, cat.y);
+    if (isDead) ctx.rotate(performance.now() * 0.006);
+    else if (Math.abs(cat.vx) > 0.4) ctx.rotate(Math.sin(performance.now() * 0.02) * 0.15);
+    ctx.font = "45px 'Segoe UI Emoji', 'Apple Color Emoji', 'Noto Color Emoji', sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    if (!isDead && cat.vx < -0.1) ctx.scale(-1, 1);
+    ctx.fillText(isDead ? "😿" : "🐱", 0, 5);
+    ctx.restore();
+}
+function drawConfetti() {
+    for (const p of confetti) {
+        ctx.save();
+        ctx.translate(p.x, p.y);
+        ctx.rotate(p.rot * Math.PI / 180);
+        ctx.fillStyle = p.color;
+        if (p.size % 2 > 1) {
+            ctx.beginPath();
+            ctx.arc(0, 0, p.size / 2, 0, Math.PI * 2);
+            ctx.fill();
+        } else {
+            ctx.fillRect(-p.size / 2, -p.size, p.size, p.size * 2.4);
+        }
+        ctx.restore();
+    }
+}
+
+function loop(now) {
+    const dt = clamp((now - lastTime) / 16.67, 0.5, 2.2);
+    lastTime = now;
+    update(dt);
+    drawWorld();
+    requestAnimationFrame(loop);
+}
+
+if (!CanvasRenderingContext2D.prototype.roundRect) {
+    CanvasRenderingContext2D.prototype.roundRect = function(x, y, w, h, r) {
+        r = Math.min(r, Math.abs(w) / 2, Math.abs(h) / 2);
+        this.moveTo(x + r, y);
+        this.arcTo(x + w, y, x + w, y + h, r);
+        this.arcTo(x + w, y + h, x, y + h, r);
+        this.arcTo(x, y + h, x, y, r);
+        this.arcTo(x, y, x + w, y, r);
+        this.closePath();
+        return this;
+    };
+}
+
+setControlListeners();
+loadLevel(currentLevel);
+requestAnimationFrame(t => {
+    lastTime = t;
+    requestAnimationFrame(loop);
+});
+</script>
+</body>
+</html>

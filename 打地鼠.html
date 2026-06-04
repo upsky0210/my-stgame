@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<title>滑鼠大冒險 - Google Sites 版</title>
+<style>
+  body { 
+    font-family: '微軟正黑體', sans-serif; 
+    text-align: center; 
+    background-color: #e0f2f1; 
+    margin: 0; padding: 20px; 
+    transition: background-color 0.2s; /* 用於閃紅特效 */
+  }
+  .red-alert { background-color: #ff5252 !important; } /* 點錯時的類別 */
+  
+  h1 { color: #00796b; margin-bottom: 10px; }
+  .dashboard { font-size: 1.5em; margin-bottom: 20px; color: #333; background: white; padding: 10px; border-radius: 10px; display: inline-block; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+  
+  .game-board { 
+    display: grid; grid-template-columns: repeat(3, 110px); gap: 15px; 
+    justify-content: center; margin: 0 auto; 
+    cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" style="font-size:30px"><text y="30">🔨</text></svg>'), auto; 
+  }
+
+  .hole { 
+    width: 110px; height: 110px; background: #6d4c41; border-radius: 50%; 
+    position: relative; overflow: hidden; border: 4px solid #3e2723; 
+    box-shadow: inset 0 10px 15px rgba(0,0,0,0.5);
+  }
+
+  .mole { 
+    width: 100%; height: 100%; position: absolute; top: 100%; left: 0; 
+    display: flex; align-items: center; justify-content: center; 
+    font-size: 60px; transition: top 0.15s cubic-bezier(0.175, 0.885, 0.32, 1.275); 
+    user-select: none; 
+  }
+  
+  .hole.up .mole { top: 10%; }
+  button { padding: 10px 30px; font-size: 1.2em; cursor: pointer; background: #009688; color: white; border: none; border-radius: 20px; box-shadow: 0 4px #004d40; }
+  button:active { transform: translateY(4px); box-shadow: none; }
+
+  /* 過關彈窗 */
+  #overlay {
+    display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0,0,0,0.8); z-index: 100; flex-direction: column; align-items: center; justify-content: center; color: white;
+  }
+  .result-box { background: white; color: #333; padding: 30px; border-radius: 20px; text-align: center; }
+  .result-rank { font-size: 2em; color: #e91e63; font-weight: bold; margin: 10px 0; }
+</style>
+</head>
+<body>
+
+  <h1>🐹 滑鼠練習大冒險 🐶</h1>
+  <div class="dashboard">
+    得分: <span id="score" style="color:#d32f2f">0</span> | 
+    時間: <span id="time" style="color:#1976d2">30</span> 秒
+  </div>
+  
+  <div class="game-board">
+    <div class="hole" id="hole1"><div class="mole">🐹</div></div>
+    <div class="hole" id="hole2"><div class="mole">🐹</div></div>
+    <div class="hole" id="hole3"><div class="mole">🐹</div></div>
+    <div class="hole" id="hole4"><div class="mole">🐹</div></div>
+    <div class="hole" id="hole5"><div class="mole">🐹</div></div>
+    <div class="hole" id="hole6"><div class="mole">🐹</div></div>
+    <div class="hole" id="hole7"><div class="mole">🐹</div></div>
+    <div class="hole" id="hole8"><div class="mole">🐹</div></div>
+    <div class="hole" id="hole9"><div class="mole">🐹</div></div>
+  </div>
+  
+  <br>
+  <button id="startBtn" onclick="startGame()">▶️ 開始練習</button>
+
+  <div id="overlay">
+    <div class="result-box">
+      <h2>⏰ 時間到！</h2>
+      <p>你的總得分是：<span id="finalScore" style="font-size:1.5em">0</span> 分</p>
+      <div id="rankEmoji" style="font-size:4em"></div>
+      <div id="rankText" class="result-rank"></div>
+      <p id="encourageText"></p>
+      <button onclick="closeOverlay()">再試一次</button>
+    </div>
+  </div>
+
+<script>
+  const holes = document.querySelectorAll('.hole');
+  let score = 0;
+  let timeUp = false;
+  let lastHole;
+
+  function randomTime(min, max) { return Math.round(Math.random() * (max - min) + min); }
+  function randomHole(holes) {
+    const idx = Math.floor(Math.random() * holes.length);
+    const hole = holes[idx];
+    if (hole === lastHole) return randomHole(holes);
+    lastHole = hole;
+    return hole;
+  }
+
+  function peep() {
+    const time = randomTime(700, 1500);
+    const hole = randomHole(holes);
+    const mole = hole.querySelector('.mole');
+    
+    // 隨機決定出現地鼠(80%)還是貓狗(20%)
+    const isGood = Math.random() > 0.2;
+    mole.textContent = isGood ? '🐹' : (Math.random() > 0.5 ? '🐱' : '🐶');
+    mole.dataset.type = isGood ? 'good' : 'bad';
+    
+    hole.classList.add('up');
+    setTimeout(() => {
+      hole.classList.remove('up');
+      if (!timeUp) peep();
+    }, time);
+  }
+
+  function startGame() {
+    score = 0;
+    document.getElementById('score').textContent = 0;
+    document.getElementById('time').textContent = 30;
+    timeUp = false;
+    document.getElementById('startBtn').disabled = true;
+    peep();
+    
+    let timeLeft = 30;
+    const timer = setInterval(() => {
+      timeLeft--;
+      document.getElementById('time').textContent = timeLeft;
+      if (timeLeft <= 0) {
+        clearInterval(timer);
+        timeUp = true;
+        showResult();
+      }
+    }, 1000);
+  }
+
+  function showResult() {
+    document.getElementById('finalScore').textContent = score;
+    let rank = "", text = "", emoji = "";
+    
+    if (score >= 30) { rank = "🏆 傳說大師"; text = "天啊！你簡直是滑鼠之王！"; emoji="👑"; }
+    else if (score >= 25) { rank = "🌟 點擊高手"; text = "你好棒！手速非常驚人喔！"; emoji="✨"; }
+    else if (score >= 20) { rank = "👍 表現出色"; text = "不錯唷！再加油一點點就晉級了！"; emoji="👏"; }
+    else if (score >= 10) { rank = "💪 潛力新秀"; text = "有進步！多練習幾次會更順手！"; emoji="🌱"; }
+    else { rank = "😊 初試身手"; text = "沒關係，慢慢來，看準再點擊！"; emoji="🎈"; }
+
+    document.getElementById('rankText').textContent = rank;
+    document.getElementById('encourageText').textContent = text;
+    document.getElementById('rankEmoji').textContent = emoji;
+    document.getElementById('overlay').style.display = 'flex';
+  }
+
+  function closeOverlay() {
+    document.getElementById('overlay').style.display = 'none';
+    document.getElementById('startBtn').disabled = false;
+  }
+
+  holes.forEach(hole => {
+    hole.querySelector('.mole').addEventListener('click', function() {
+      if(!hole.classList.contains('up')) return;
+      
+      if(this.dataset.type === 'good') {
+        score++;
+        this.textContent = '😵'; // 打到地鼠變暈
+      } else {
+        score -= 3; // 點到貓狗扣3分
+        document.body.classList.add('red-alert'); // 變紅警告
+        setTimeout(() => document.body.classList.remove('red-alert'), 200);
+      }
+      
+      document.getElementById('score').textContent = score;
+      hole.classList.remove('up');
+    });
+  });
+</script>
+</body>
+</html>

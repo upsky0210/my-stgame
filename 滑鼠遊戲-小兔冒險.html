@@ -1,0 +1,813 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>小兔勇者大冒險 - 滑鼠特訓 (Sky Games)</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700;900&display=swap" rel="stylesheet">
+<style>
+    :root {
+        /* Ink Wash & Wood Grain Palette (Preserved) */
+        --bg-paper: #f0ece1;
+        --wood-light: #d8caba;
+        --wood-dark: #8c7355;
+        --ink-light: #595959;
+        --ink-dark: #262626;
+        --accent-red: #8b3a3a;
+        --accent-green: #5c7054;
+        
+        /* New Modern UI Variables */
+        --shadow-soft: 0 12px 32px rgba(140, 115, 85, 0.15);
+        --shadow-button: 0 4px 12px rgba(140, 115, 85, 0.2);
+        --surface-white: rgba(255, 255, 255, 0.85);
+        --glass-bg: rgba(240, 236, 225, 0.85);
+        --border-radius-lg: 24px;
+        --border-radius-md: 16px;
+        --border-radius-sm: 12px;
+    }
+    
+    * { box-sizing: border-box; }
+    html, body { 
+        margin: 0; padding: 0; height: 100%; 
+        background: radial-gradient(circle at top left, #fdfbf7 0%, var(--bg-paper) 100%);
+        font-family: 'Noto Sans TC', sans-serif;
+        color: var(--ink-dark);
+        user-select: none;
+        -webkit-user-select: none;
+        overflow: hidden;
+    }
+
+    #app {
+        display: grid;
+        grid-template-columns: 320px 1fr;
+        height: 100vh;
+        width: 100vw;
+        padding: 24px;
+        gap: 24px;
+    }
+
+    @media (max-width: 768px) {
+        #app { 
+            grid-template-columns: 1fr; 
+            grid-template-rows: auto 1fr; 
+            padding: 16px;
+            gap: 16px;
+        }
+    }
+
+    /* ===== Left Panel (Floating Card) ===== */
+    .panel {
+        background: var(--surface-white);
+        border: 1px solid rgba(255, 255, 255, 0.6);
+        border-radius: var(--border-radius-lg);
+        padding: 32px 24px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        box-shadow: var(--shadow-soft);
+        z-index: 10;
+        position: relative;
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+    }
+
+    .title-emoji { 
+        font-size: clamp(48px, 6vw, 64px); 
+        margin-bottom: 12px;
+        animation: float 3s ease-in-out infinite;
+        filter: drop-shadow(0 4px 8px rgba(140, 115, 85, 0.2));
+    }
+    
+    @keyframes float {
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(-8px); }
+    }
+
+    .title-text {
+        font-size: clamp(22px, 2.5vw, 26px);
+        font-weight: 900;
+        color: var(--ink-dark);
+        margin: 0 0 12px;
+        text-align: center;
+        line-height: 1.2;
+    }
+    .subtitle {
+        font-size: 14px;
+        color: var(--ink-light);
+        font-weight: 700;
+        text-align: center;
+        margin-bottom: 32px;
+        background: var(--wood-light);
+        padding: 8px 16px;
+        border-radius: 100px;
+    }
+
+    /* Stats Container (Capsules) */
+    .stats-box {
+        width: 100%;
+        display: none; /* Shown during game */
+        flex-direction: column;
+        gap: 12px;
+        margin-bottom: 32px;
+    }
+    .stats-box.active { display: flex; }
+    
+    .stat-row {
+        background: var(--bg-paper);
+        border-radius: var(--border-radius-sm);
+        padding: 14px 20px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 16px;
+        font-weight: 700;
+        box-shadow: inset 0 2px 4px rgba(140, 115, 85, 0.05);
+        color: var(--ink-light);
+        border: 1px solid rgba(255, 255, 255, 0.8);
+    }
+    
+    .stat-value {
+        font-size: 22px;
+        font-weight: 900;
+        color: var(--wood-dark);
+    }
+
+    /* ===== Buttons (Modern & Soft) ===== */
+    .btn {
+        font-family: 'Noto Sans TC', sans-serif;
+        font-size: 18px;
+        font-weight: 700;
+        padding: 16px 32px;
+        background: white;
+        color: var(--ink-dark);
+        border: none;
+        border-radius: var(--border-radius-sm);
+        cursor: pointer;
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow: var(--shadow-button);
+        width: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        margin-bottom: 12px;
+    }
+    .btn:hover { 
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(140, 115, 85, 0.25);
+    }
+    .btn:active { 
+        transform: translateY(1px); 
+        box-shadow: 0 2px 8px rgba(140, 115, 85, 0.15); 
+    }
+    .btn.primary { 
+        background: linear-gradient(135deg, var(--wood-dark), #9a8264); 
+        color: white; 
+    }
+    .btn.primary:hover {
+        background: linear-gradient(135deg, #9a8264, var(--wood-dark)); 
+    }
+
+    /* ===== Interactive Area (Right) ===== */
+    .interactive-area {
+        position: relative;
+        background: transparent;
+        border-radius: var(--border-radius-lg);
+        overflow: hidden;
+    }
+    
+    .screen {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 24px;
+        transition: opacity 0.3s ease;
+    }
+    .hidden { opacity: 0; pointer-events: none; }
+
+    /* Game Entities (Physical Tokens) */
+    .game-entity {
+        position: absolute;
+        width: 76px;
+        height: 76px;
+        background: white;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 38px;
+        cursor: pointer;
+        box-shadow: 0 6px 16px rgba(140, 115, 85, 0.2), inset 0 2px 4px rgba(255,255,255,0.8);
+        border: 2px solid var(--bg-paper);
+        transition: transform 0.1s cubic-bezier(0.4, 0, 0.2, 1);
+        animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+    @keyframes popIn {
+        0% { transform: scale(0); opacity: 0; }
+        100% { transform: scale(1); opacity: 1; }
+    }
+    .game-entity:active {
+        transform: scale(0.9);
+        box-shadow: 0 2px 8px rgba(140, 115, 85, 0.15), inset 0 2px 4px rgba(140,115,85,0.05);
+    }
+    .game-entity.dragging {
+        transform: scale(1.1);
+        box-shadow: 0 16px 32px rgba(140, 115, 85, 0.3);
+        z-index: 50;
+    }
+    
+    /* Drag Basket */
+    .basket {
+        position: absolute;
+        bottom: 40px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 140px;
+        height: 140px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(255, 255, 255, 0.5);
+        border: 3px dashed var(--wood-dark);
+        border-radius: var(--border-radius-lg);
+        box-shadow: var(--shadow-soft);
+        font-size: 56px;
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .basket.highlight {
+        background: rgba(216, 202, 186, 0.6);
+        transform: translateX(-50%) scale(1.08);
+        border: 3px solid var(--wood-dark);
+        box-shadow: 0 16px 40px rgba(140, 115, 85, 0.3);
+    }
+
+    /* Instruction Tooltip */
+    .instruction-overlay {
+        position: absolute;
+        top: 32px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: var(--surface-white);
+        border: 1px solid rgba(255,255,255,0.8);
+        padding: 12px 32px;
+        border-radius: 100px;
+        font-size: 20px;
+        font-weight: 900;
+        color: var(--wood-dark);
+        z-index: 100;
+        pointer-events: none;
+        box-shadow: var(--shadow-button);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        white-space: nowrap;
+        animation: slideDown 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+    @keyframes slideDown {
+        0% { transform: translate(-50%, -30px) scale(0.9); opacity: 0; }
+        100% { transform: translate(-50%, 0) scale(1); opacity: 1; }
+    }
+
+    /* Ripple & Interactions */
+    .ripple {
+        position: absolute;
+        border-radius: 50%;
+        background: rgba(139, 58, 58, 0.2);
+        transform: scale(0);
+        animation: ripple-anim 0.6s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+        pointer-events: none;
+        z-index: 9999;
+    }
+    @keyframes ripple-anim {
+        to { transform: scale(3.5); opacity: 0; }
+    }
+
+    .right-click-warn {
+        position: absolute;
+        background: var(--accent-red);
+        color: white;
+        padding: 12px 24px;
+        border-radius: 100px;
+        font-weight: 700;
+        font-size: 16px;
+        pointer-events: none;
+        z-index: 10000;
+        animation: fade-up 2s forwards;
+        box-shadow: 0 8px 24px rgba(139, 58, 58, 0.3);
+        border: 2px solid rgba(255,255,255,0.2);
+    }
+    @keyframes fade-up {
+        0% { opacity: 0; transform: translateY(15px); }
+        10%, 80% { opacity: 1; transform: translateY(0); }
+        100% { opacity: 0; transform: translateY(-15px); }
+    }
+
+    /* Modals & Overlays */
+    .level-clear-overlay {
+        position: absolute;
+        inset: 0;
+        background: var(--glass-bg);
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 200;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.4s ease;
+    }
+    .level-clear-overlay.show { opacity: 1; pointer-events: auto; }
+    
+    .level-clear-card {
+        background: var(--surface-white);
+        padding: 40px 64px;
+        border-radius: var(--border-radius-lg);
+        box-shadow: var(--shadow-soft);
+        font-size: clamp(28px, 4vw, 36px);
+        font-weight: 900;
+        color: var(--accent-green);
+        transform: translateY(20px);
+        transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        border: 1px solid rgba(255,255,255,0.8);
+        text-align: center;
+    }
+    .level-clear-overlay.show .level-clear-card {
+        transform: translateY(0);
+    }
+
+    /* Game Over Center Card */
+    #gameover-screen-card {
+        background: var(--surface-white);
+        border-radius: var(--border-radius-lg);
+        border: 1px solid rgba(255, 255, 255, 0.8);
+        box-shadow: var(--shadow-soft);
+        padding: 48px;
+        text-align: center;
+        width: 100%;
+        max-width: 400px;
+    }
+    
+    #new-record {
+        background: rgba(92, 112, 84, 0.1);
+        color: var(--accent-green);
+        padding: 10px 20px;
+        border-radius: 100px;
+        font-size: 18px;
+        font-weight: 900;
+        margin-bottom: 24px;
+        display: inline-block;
+        border: 1px solid rgba(92, 112, 84, 0.2);
+    }
+</style>
+</head>
+<body>
+
+<div id="app">
+    <!-- Left Panel (Control & Info) -->
+    <div class="panel">
+        <div class="title-emoji">🐰</div>
+        <h1 class="title-text">小兔勇者大冒險</h1>
+        <p class="subtitle">滑鼠基礎特訓</p>
+        
+        <div id="panel-start" style="width: 100%; display: flex; flex-direction: column; align-items: center;">
+            <button class="btn primary" onclick="startGame()">▶ 開始冒險</button>
+            <div style="margin-top: 16px; color: var(--ink-light); font-size: 14px; font-weight: 700; text-align: center; opacity: 0.8;">
+                點擊、移動、拖曳、雙擊
+            </div>
+        </div>
+
+        <div id="panel-stats" class="stats-box">
+            <div class="stat-row">
+                <span>⭐ 分數</span>
+                <span id="score-display" class="stat-value">0</span>
+            </div>
+            <div class="stat-row">
+                <span>⏱️ 時間</span>
+                <span id="time-display" class="stat-value">0</span>
+            </div>
+        </div>
+        
+        <div id="panel-gameover" style="width: 100%; display: none; flex-direction: column; align-items: center;">
+            <button class="btn primary" onclick="startGame()">🔄 再玩一次</button>
+        </div>
+    </div>
+
+    <!-- Right Interactive Area -->
+    <div class="interactive-area">
+        <!-- Start Screen Placeholder -->
+        <div id="start-screen" class="screen">
+            <div style="font-size: clamp(120px, 15vw, 180px); opacity: 0.05; filter: grayscale(1);">🐰</div>
+        </div>
+
+        <!-- Game Active Screen -->
+        <div id="game-screen" class="screen hidden">
+            <div id="instruction" class="instruction-overlay"></div>
+            <div id="game-container" style="position: absolute; inset: 0;"></div>
+            <div id="level-clear-message" class="level-clear-overlay">
+                <div class="level-clear-card">✨ 太棒了！下一關 ✨</div>
+            </div>
+        </div>
+
+        <!-- Game Over Screen -->
+        <div id="gameover-screen" class="screen hidden" style="backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);">
+            <div id="gameover-screen-card">
+                <div style="font-size: 64px; margin-bottom: 16px; animation: popIn 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);">🏆</div>
+                <h2 class="title-text" style="font-size: 32px; margin-bottom: 24px;">挑戰完成！</h2>
+                
+                <div id="new-record" class="hidden">✨ 破紀錄啦！ ✨</div>
+                
+                <div style="font-size: 20px; font-weight: bold; margin-bottom: 16px; color: var(--ink-light);">
+                    最終分數
+                </div>
+                <div id="final-score" style="color: var(--accent-red); font-size: 48px; font-weight: 900; margin-bottom: 16px; text-shadow: 2px 2px 0px rgba(0,0,0,0.05);">
+                    0
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// --- Procedural Web Audio API ---
+const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+function playTone(freq, type, duration, vol=0.1) {
+    if(audioCtx.state === 'suspended') audioCtx.resume();
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = type;
+    osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+    
+    gain.gain.setValueAtTime(0, audioCtx.currentTime);
+    gain.gain.linearRampToValueAtTime(vol, audioCtx.currentTime + 0.05);
+    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
+    
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.start();
+    osc.stop(audioCtx.currentTime + duration);
+}
+
+function playClick() { playTone(600, 'sine', 0.1, 0.1); }
+function playSuccess() { 
+    playTone(523.25, 'sine', 0.15, 0.1); 
+    setTimeout(() => playTone(659.25, 'sine', 0.2, 0.1), 100); 
+}
+function playFail() { playTone(200, 'triangle', 0.3, 0.15); }
+function playLevelUp() {
+    playTone(440, 'sine', 0.1, 0.1);
+    setTimeout(() => playTone(554, 'sine', 0.1, 0.1), 100);
+    setTimeout(() => playTone(659, 'sine', 0.3, 0.1), 200);
+}
+
+// --- Global Events (Right-Click Prevention & Ripple Effect) ---
+document.addEventListener('contextmenu', function(e) {
+    e.preventDefault();
+    const warn = document.createElement('div');
+    warn.className = 'right-click-warn';
+    warn.innerText = '💡 請用食指按左邊的按鍵喔！';
+    warn.style.left = e.pageX + 'px';
+    warn.style.top = e.pageY + 'px';
+    document.body.appendChild(warn);
+    setTimeout(() => warn.remove(), 2000);
+});
+
+document.addEventListener('mousedown', function(e) {
+    if (e.button === 0) {
+        const ripple = document.createElement('div');
+        ripple.className = 'ripple';
+        const size = 60;
+        ripple.style.width = ripple.style.height = size + 'px';
+        ripple.style.left = (e.pageX - size/2) + 'px';
+        ripple.style.top = (e.pageY - size/2) + 'px';
+        document.body.appendChild(ripple);
+        setTimeout(() => ripple.remove(), 600);
+    }
+});
+
+// --- DOM Elements ---
+const startScreen = document.getElementById('start-screen');
+const gameScreen = document.getElementById('game-screen');
+const gameoverScreen = document.getElementById('gameover-screen');
+const gameContainer = document.getElementById('game-container');
+const instructionEl = document.getElementById('instruction');
+
+const scoreDisplay = document.getElementById('score-display');
+const timeDisplay = document.getElementById('time-display');
+const finalScoreEl = document.getElementById('final-score');
+const newRecordEl = document.getElementById('new-record');
+
+const panelStart = document.getElementById('panel-start');
+const panelStats = document.getElementById('panel-stats');
+const panelGameover = document.getElementById('panel-gameover');
+
+// --- Game State ---
+let score = 0;
+let time = 0;
+let timerInt = null;
+let currentLevel = 0;
+let isDragging = false;
+
+// Levels Config
+const levels = [
+    { type: 'click', name: '單擊訓練', target: '🐺', count: 5, inst: '🖱️ 點擊野狼！' },
+    { type: 'move', name: '移動訓練', target: '🪙', count: 8, inst: '↔️ 滑鼠移過去吃金幣！' },
+    { type: 'drag', name: '拖曳訓練', target: '🥕', count: 4, inst: '🤏 把紅蘿蔔拖進籃子裡！' },
+    { type: 'dblclick', name: '雙擊訓練', target: '📦', count: 5, inst: '⚡ 連點兩下打開寶箱！' },
+    { type: 'mixed', name: '綜合考驗', count: 10, inst: '🔥 注意看要怎麼解！' }
+];
+
+function startGame() {
+    score = 0;
+    time = 0;
+    currentLevel = 0;
+    updateHUD();
+    
+    startScreen.classList.add('hidden');
+    gameoverScreen.classList.add('hidden');
+    gameScreen.classList.remove('hidden');
+    
+    panelStart.style.display = 'none';
+    panelGameover.style.display = 'none';
+    panelStats.classList.add('active');
+
+    if(timerInt) clearInterval(timerInt);
+    timerInt = setInterval(() => { time++; updateHUD(); }, 1000);
+    
+    playLevelUp();
+    startLevel();
+}
+
+function updateHUD() {
+    scoreDisplay.innerText = score;
+    timeDisplay.innerText = time;
+}
+
+function startLevel() {
+    gameContainer.innerHTML = '';
+    if (currentLevel >= levels.length) {
+        endGame();
+        return;
+    }
+    
+    const lvl = levels[currentLevel];
+    instructionEl.innerText = lvl.inst;
+    
+    // Re-trigger animation
+    instructionEl.style.animation = 'none';
+    instructionEl.offsetHeight; // trigger reflow
+    instructionEl.style.animation = 'slideDown 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
+    
+    if (lvl.type === 'mixed') {
+        spawnMixed();
+    } else {
+        spawnEntities(lvl.type, lvl.target, lvl.count);
+    }
+}
+
+function getSafePos() {
+    const w = gameContainer.clientWidth - 100;
+    const h = gameContainer.clientHeight - 200;
+    const x = Math.random() * w + 50;
+    const y = Math.random() * h + 100;
+    return {x, y};
+}
+
+function createEntity(emoji) {
+    const el = document.createElement('div');
+    el.className = 'game-entity';
+    el.innerText = emoji;
+    const pos = getSafePos();
+    el.style.left = pos.x + 'px';
+    el.style.top = pos.y + 'px';
+    return el;
+}
+
+function spawnEntities(type, emoji, count) {
+    let remaining = count;
+    let basket = null;
+    
+    if (type === 'drag') {
+        basket = document.createElement('div');
+        basket.className = 'basket';
+        basket.innerText = '🧺';
+        gameContainer.appendChild(basket);
+    }
+
+    for (let i = 0; i < count; i++) {
+        const el = createEntity(emoji);
+        
+        el.style.animationDelay = `${i * 0.05}s`;
+
+        if (type === 'click') {
+            el.onmousedown = () => {
+                playClick();
+                el.style.transform = 'scale(0)';
+                el.style.opacity = '0';
+                setTimeout(() => el.remove(), 200);
+                addScore(10);
+                remaining--;
+                if(remaining <= 0) nextLevel();
+            };
+        } else if (type === 'move') {
+            el.onmouseenter = () => {
+                playClick();
+                el.style.transform = 'scale(0)';
+                el.style.opacity = '0';
+                setTimeout(() => el.remove(), 200);
+                addScore(10);
+                remaining--;
+                if(remaining <= 0) nextLevel();
+            };
+        } else if (type === 'dblclick') {
+            el.dataset.lastClickTime = 0;
+            el.onmousedown = (e) => {
+                if (e.button !== 0) return;
+                const now = Date.now();
+                if (now - parseInt(el.dataset.lastClickTime) < 800) {
+                    playSuccess();
+                    el.innerText = '💎';
+                    el.onmousedown = null;
+                    setTimeout(() => {
+                        el.style.transform = 'scale(0)';
+                        el.style.opacity = '0';
+                        setTimeout(() => el.remove(), 200);
+                        addScore(20);
+                        remaining--;
+                        if(remaining <= 0) nextLevel();
+                    }, 400);
+                } else {
+                    el.dataset.lastClickTime = now;
+                    playClick();
+                }
+            };
+        } else if (type === 'drag') {
+            el.onmousedown = (e) => {
+                isDragging = true;
+                el.classList.add('dragging');
+                playClick();
+                
+                let shiftX = e.clientX - el.getBoundingClientRect().left;
+                let shiftY = e.clientY - el.getBoundingClientRect().top;
+                
+                function moveAt(pageX, pageY) {
+                    const cRect = gameContainer.getBoundingClientRect();
+                    el.style.left = (pageX - cRect.left - shiftX) + 'px';
+                    el.style.top = (pageY - cRect.top - shiftY) + 'px';
+                    
+                    const bRect = basket.getBoundingClientRect();
+                    const eRect = el.getBoundingClientRect();
+                    if (eRect.left < bRect.right && eRect.right > bRect.left &&
+                        eRect.top < bRect.bottom && eRect.bottom > bRect.top) {
+                        basket.classList.add('highlight');
+                    } else {
+                        basket.classList.remove('highlight');
+                    }
+                }
+                
+                function onMouseMove(e) { moveAt(e.pageX, e.pageY); }
+                document.addEventListener('mousemove', onMouseMove);
+                
+                el.onmouseup = () => {
+                    document.removeEventListener('mousemove', onMouseMove);
+                    el.onmouseup = null;
+                    isDragging = false;
+                    el.classList.remove('dragging');
+                    basket.classList.remove('highlight');
+                    
+                    const bRect = basket.getBoundingClientRect();
+                    const eRect = el.getBoundingClientRect();
+                    
+                    if (eRect.left < bRect.right && eRect.right > bRect.left &&
+                        eRect.top < bRect.bottom && eRect.bottom > bRect.top) {
+                        playSuccess();
+                        el.style.transform = 'scale(0)';
+                        el.style.opacity = '0';
+                        setTimeout(() => el.remove(), 200);
+                        addScore(15);
+                        remaining--;
+                        if(remaining <= 0) nextLevel();
+                    } else {
+                        playFail();
+                    }
+                };
+            };
+            el.ondragstart = () => false;
+        }
+        gameContainer.appendChild(el);
+    }
+}
+
+function spawnMixed() {
+    const types = ['click', 'move', 'dblclick'];
+    const emojis = ['🐺', '🪙', '📦'];
+    let remaining = levels[4].count;
+    
+    for (let i = 0; i < remaining; i++) {
+        const tIdx = Math.floor(Math.random() * types.length);
+        const type = types[tIdx];
+        const emoji = emojis[tIdx];
+        
+        const el = createEntity(emoji);
+        el.style.animationDelay = `${i * 0.05}s`;
+        
+        if (type === 'click') {
+            el.onmousedown = () => {
+                playClick(); 
+                el.style.transform = 'scale(0)'; el.style.opacity = '0';
+                setTimeout(() => el.remove(), 200); 
+                addScore(10); remaining--;
+                if(remaining <= 0) nextLevel();
+            };
+        } else if (type === 'move') {
+            el.onmouseenter = () => {
+                if(isDragging) return;
+                playClick(); 
+                el.style.transform = 'scale(0)'; el.style.opacity = '0';
+                setTimeout(() => el.remove(), 200); 
+                addScore(10); remaining--;
+                if(remaining <= 0) nextLevel();
+            };
+        } else if (type === 'dblclick') {
+            el.dataset.lastClickTime = 0;
+            el.onmousedown = (e) => {
+                if (e.button !== 0) return;
+                const now = Date.now();
+                if (now - parseInt(el.dataset.lastClickTime) < 800) {
+                    playSuccess(); el.innerText='💎';
+                    el.onmousedown = null;
+                    setTimeout(()=> { 
+                        el.style.transform = 'scale(0)'; el.style.opacity = '0';
+                        setTimeout(() => el.remove(), 200); 
+                        addScore(20); remaining--; 
+                        if(remaining<=0) nextLevel(); 
+                    }, 400);
+                } else {
+                    el.dataset.lastClickTime = now;
+                    playClick();
+                }
+            };
+        }
+        gameContainer.appendChild(el);
+    }
+}
+
+function addScore(pts) {
+    score += pts;
+    updateHUD();
+}
+
+function nextLevel() {
+    playLevelUp();
+    currentLevel++;
+    
+    if (currentLevel < levels.length) {
+        const msg = document.getElementById('level-clear-message');
+        msg.classList.add('show');
+        setTimeout(() => {
+            msg.classList.remove('show');
+            setTimeout(startLevel, 400);
+        }, 1500);
+    } else {
+        setTimeout(endGame, 500);
+    }
+}
+
+function endGame() {
+    clearInterval(timerInt);
+    gameScreen.classList.add('hidden');
+    gameoverScreen.classList.remove('hidden');
+    
+    panelStats.classList.remove('active');
+    panelGameover.style.display = 'flex';
+    
+    const timeBonus = Math.max(0, 100 - time) * 2;
+    score += timeBonus;
+    
+    let currentDisplayScore = 0;
+    const scoreAnim = setInterval(() => {
+        currentDisplayScore += Math.ceil(score / 30);
+        if (currentDisplayScore >= score) {
+            currentDisplayScore = score;
+            clearInterval(scoreAnim);
+            
+            const oldHigh = localStorage.getItem('edtech-unit2-score') || 0;
+            if (score > oldHigh) {
+                localStorage.setItem('edtech-unit2-score', score);
+                newRecordEl.classList.remove('hidden');
+                playLevelUp();
+            } else {
+                newRecordEl.classList.add('hidden');
+            }
+        }
+        finalScoreEl.innerText = currentDisplayScore;
+    }, 30);
+}
+</script>
+</body>
+</html>

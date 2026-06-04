@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🏡 我們的領地 (終極加強版) 🐻</title>
+    <style>
+        :root {
+            --bg-color: #12121c;
+            --p1-color: #55ccff;
+            --ai-color: #ff5555;
+        }
+        body {
+            background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+            margin: 0;
+            overflow: hidden;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: white;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            user-select: none;
+        }
+        
+        #ui-layer {
+            width: 800px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            z-index: 10;
+        }
+
+        .title {
+            font-size: 28px;
+            font-weight: 900;
+            text-shadow: 0 0 15px rgba(255, 255, 255, 0.5);
+            letter-spacing: 2px;
+        }
+
+        .score-box {
+            background: rgba(0, 0, 0, 0.4);
+            padding: 12px 24px;
+            border-radius: 30px;
+            font-size: 20px;
+            font-weight: 800;
+            border: 2px solid rgba(255,255,255,0.1);
+            backdrop-filter: blur(5px);
+            transition: all 0.3s ease;
+        }
+        
+        #score-p1 { color: var(--p1-color); box-shadow: 0 0 15px rgba(85, 204, 255, 0.3); border-color: rgba(85, 204, 255, 0.4); }
+        #score-ai { color: var(--ai-color); box-shadow: 0 0 15px rgba(255, 85, 85, 0.3); border-color: rgba(255, 85, 85, 0.4); }
+
+        #game-wrapper {
+            position: relative;
+            padding: 10px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 20px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.8);
+            backdrop-filter: blur(10px);
+        }
+
+        canvas {
+            display: block;
+            border-radius: 12px;
+            background-color: #1e1e2d;
+            background-image: 
+                linear-gradient(rgba(255,255,255,0.04) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255,255,255,0.04) 1px, transparent 1px);
+            background-size: 20px 20px;
+            box-shadow: inset 0 0 50px rgba(0,0,0,0.5);
+        }
+
+        /* Modal Overlay */
+        #modal {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.7); backdrop-filter: blur(8px);
+            display: flex; align-items: center; justify-content: center;
+            z-index: 100; opacity: 0; pointer-events: none; transition: opacity 0.4s ease;
+            border-radius: 20px;
+        }
+        #modal.show { opacity: 1; pointer-events: auto; }
+        
+        .modal-content {
+            background: linear-gradient(135deg, #2c3e50, #3498db);
+            padding: 40px 60px; border-radius: 20px; text-align: center;
+            box-shadow: 0 15px 40px rgba(0,0,0,0.6);
+            border: 2px solid rgba(255,255,255,0.2);
+            transform: scale(0.8) translateY(20px); transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        #modal.show .modal-content { transform: scale(1) translateY(0); }
+        
+        .modal-content h1 { margin: 0 0 15px 0; font-size: 42px; text-shadow: 2px 2px 4px rgba(0,0,0,0.4); }
+        .modal-content p { font-size: 18px; margin-bottom: 35px; line-height: 1.6; color: #e0e0e0; }
+        
+        button {
+            background: linear-gradient(45deg, #ff512f, #dd2476);
+            color: white; border: none; padding: 15px 40px;
+            font-size: 22px; font-weight: bold; border-radius: 40px; cursor: pointer;
+            box-shadow: 0 8px 25px rgba(221, 36, 118, 0.5); transition: all 0.2s;
+            text-transform: uppercase; letter-spacing: 1px;
+        }
+        button:hover { transform: translateY(-3px); box-shadow: 0 12px 30px rgba(221, 36, 118, 0.7); }
+        button:active { transform: translateY(1px); }
+
+        #controls {
+            margin-top: 25px; color: rgba(255,255,255,0.5); font-size: 15px; letter-spacing: 1px;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="ui-layer">
+        <div class="score-box" id="score-p1">🐻 小熊: 0.0%</div>
+        <div class="title">🐾 我們的領地</div>
+        <div class="score-box" id="score-ai">🦊 狐狸: 0.0%</div>
+    </div>
+
+    <div id="game-wrapper">
+        <canvas id="gameCanvas" width="800" height="600"></canvas>
+        
+        <div id="modal" class="show">
+            <div class="modal-content">
+                <h1 id="modal-title">🏡 我們的領地</h1>
+                <p id="modal-desc">
+                    🐻 <b>終極加強版</b> 🦊<br><br>
+                    方向鍵控制移動，將空地圈起來變成自己的領地。<br>
+                    ⚠️ <b>警告：不要撞到自己的軌跡！</b><br>
+                    💥 <b>戰鬥：碰到狐狸的軌跡可以消滅牠！</b><br>
+                    🍎 <b>道具：吃到蘋果可以瞬間擴張領地！</b><br><br>
+                    <i>沿著邊界走是安全的，善用邊界來圈地吧！</i>
+                </p>
+                <div id="modal-buttons" style="display: flex; gap: 20px; justify-content: center;">
+                    <button onclick="setDifficultyAndStart('EASY')" style="background: linear-gradient(45deg, #11998e, #38ef7d); font-size: 20px;">🟢 簡單模式</button>
+                    <button onclick="setDifficultyAndStart('HARD')" style="background: linear-gradient(45deg, #ff512f, #dd2476); font-size: 20px;">🔥 困難模式</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="controls">⌨️ 提示: 使用鍵盤 上下左右 (或 W A S D) 移動，達到 80% 佔領率即可獲勝！</div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const scoreP1 = document.getElementById('score-p1');
+        const scoreAI = document.getElementById('score-ai');
+        const modal = document.getElementById('modal');
+        const modalTitle = document.getElementById('modal-title');
+        const modalDesc = document.getElementById('modal-desc');
+
+        const GRID_SIZE = 20;
+        const WIDTH_GRID = Math.floor(canvas.width / GRID_SIZE); // 40
+        const HEIGHT_GRID = Math.floor(canvas.height / GRID_SIZE); // 30
+        const TICK_RATE = 110; // 邏輯更新速度 (毫秒)
+
+        const PLAYER_ID = 1;
+        const AI_ID = 2;
+
+        let grid = [];
+        let players = {};
+        let items = [];
+        let gameActive = false;
+        let logicInterval = null;
+        let itemInterval = null;
+        let inputQueue = [];
+        let difficulty = 'EASY';
+
+        function setDifficultyAndStart(diff) {
+            difficulty = diff;
+            initGame();
+        }
+
+        // 初始化遊戲與變數
+        function initGame() {
+            grid = Array(HEIGHT_GRID).fill(0).map(() => Array(WIDTH_GRID).fill(0));
+            inputQueue = [];
+            
+            players = {
+                [PLAYER_ID]: { 
+                    id: PLAYER_ID, isAi: false, emoji: '🐻', 
+                    color: 'rgba(85, 204, 255, 0.4)', trailColor: 'rgba(85, 204, 255, 0.9)', 
+                    x: 10, y: 15, dir: 'RIGHT', nextDir: 'RIGHT', 
+                    renderX: 10 * GRID_SIZE, renderY: 15 * GRID_SIZE,
+                    trail: [], alive: true, score: 0
+                },
+                [AI_ID]: { 
+                    id: AI_ID, isAi: true, emoji: '🦊', 
+                    color: 'rgba(255, 85, 85, 0.4)', trailColor: 'rgba(255, 85, 85, 0.9)', 
+                    x: 29, y: 15, dir: 'LEFT', nextDir: 'LEFT', 
+                    renderX: 29 * GRID_SIZE, renderY: 15 * GRID_SIZE,
+                    trail: [], alive: true, score: 0
+                }
+            };
+
+            items = [];
+            
+            // 初始給予半徑 2 的領地
+            drawInitialTerritory(PLAYER_ID, 10, 15, 2);
+            drawInitialTerritory(AI_ID, 29, 15, 2);
+            
+            updateScores();
+            gameActive = true;
+            modal.classList.remove('show');
+            
+            if (logicInterval) clearInterval(logicInterval);
+            if (itemInterval) clearInterval(itemInterval);
+            
+            logicInterval = setInterval(gameLogic, TICK_RATE);
+            itemInterval = setInterval(spawnItem, 5000);
+        }
+
+        // 繪製初始方形領地
+        function drawInitialTerritory(pid, cx, cy, radius) {
+            for (let y = 0; y < HEIGHT_GRID; y++) {
+                for (let x = 0; x < WIDTH_GRID; x++) {
+                    if (Math.abs(x - cx) <= radius && Math.abs(y - cy) <= radius) {
+                        grid[y][x] = pid;
+                    }
+                }
+            }
+        }
+
+        // 產生蘋果道具
+        function spawnItem() {
+            if (!gameActive || items.length >= 4) return;
+            let x = Math.floor(Math.random() * WIDTH_GRID);
+            let y = Math.floor(Math.random() * HEIGHT_GRID);
+            if (grid[y][x] === 0) { // 只在空地上生成
+                items.push({ x, y, type: 'APPLE', emoji: '🍎' });
+            }
+        }
+
+        // AI 思考邏輯
+        function aiThink(p) {
+            const dirs = ['UP', 'RIGHT', 'DOWN', 'LEFT'];
+            
+            // 過濾出不會立刻死掉的方向
+            let safeDirs = dirs.filter(d => {
+                let nx = p.x, ny = p.y;
+                if (d === 'UP') ny--; if (d === 'DOWN') ny++;
+                if (d === 'LEFT') nx--; if (d === 'RIGHT') nx++;
+                
+                // 不要主動撞牆 (雖然撞牆不會死，但會停滯)
+                if (nx < 0 || nx >= WIDTH_GRID || ny < 0 || ny >= HEIGHT_GRID) return false;
+                // 絕對不能撞到自己的軌跡
+                if (p.trail.some(t => t.x === nx && t.y === ny)) return false;
+                
+                return true;
+            });
+            
+            if (safeDirs.length === 0) return; // 死路一條
+            
+            if (difficulty === 'EASY') {
+                // 簡單模式：隨機亂走
+                if (Math.random() < 0.1 || !safeDirs.includes(p.dir)) {
+                    p.nextDir = safeDirs[Math.floor(Math.random() * safeDirs.length)];
+                } else {
+                    p.nextDir = p.dir;
+                }
+                return;
+            }
+
+            // 困難模式：主動追擊玩家軌跡與快速擴張
+            let bestDir = p.dir;
+            let maxScore = -Infinity;
+            let player = players[PLAYER_ID];
+
+            safeDirs.forEach(d => {
+                let nx = p.x, ny = p.y;
+                if (d === 'UP') ny--; if (d === 'DOWN') ny++;
+                if (d === 'LEFT') nx--; if (d === 'RIGHT') nx++;
+                
+                let score = Math.random() * 10; // 基礎隨機權重，避免卡死
+                if (d === p.dir) score += 5; // 傾向保持直線
+                
+                if (player.alive) {
+                    if (player.trail.length > 0) {
+                        // 追擊玩家軌跡！
+                        let minDist = Infinity;
+                        player.trail.forEach(t => {
+                            let dist = Math.abs(t.x - nx) + Math.abs(t.y - ny);
+                            if (dist < minDist) minDist = dist;
+                        });
+                        
+                        if (minDist === 0) {
+                            score += 1000; // 致命一擊
+                        } else {
+                            score += (100 - minDist) * 3; // 越近分數越高
+                        }
+                    } else {
+                        // 如果玩家沒有軌跡，稍微往玩家靠近施加壓力
+                        let distToPlayer = Math.abs(player.x - nx) + Math.abs(player.y - ny);
+                        score += (100 - distToPlayer) * 0.5;
+                    }
+                }
+                
+                // 自我保護：如果自己軌跡太長，趕快回家
+                if (p.trail.length > 10) {
+                    let minDistToHome = Infinity;
+                    for (let y = 0; y < HEIGHT_GRID; y++) {
+                        for (let x = 0; x < WIDTH_GRID; x++) {
+                            if (grid[y][x] === p.id) {
+                                let dist = Math.abs(x - nx) + Math.abs(y - ny);
+                                if (dist < minDistToHome) minDistToHome = dist;
+                            }
+                        }
+                    }
+                    if (minDistToHome === 0) {
+                        score += 500; // 回到家了！
+                    } else {
+                        score += (100 - minDistToHome) * 2;
+                    }
+                } else if (p.trail.length === 0) {
+                    // 如果在自己家裡，鼓勵往外走
+                    if (grid[ny][nx] !== p.id) {
+                        score += 50; 
+                    }
+                }
+
+                if (score > maxScore) {
+                    maxScore = score;
+                    bestDir = d;
+                }
+            });
+            
+            p.nextDir = bestDir;
+        }
+
+        // 核心遊戲邏輯 (每 Tick 執行一次)
+        function gameLogic() {
+            if (!gameActive) return;
+            
+            for (let id in players) {
+                let p = players[id];
+                if (!p.alive) continue;
+                
+                if (p.isAi) {
+                    aiThink(p);
+                } else if (inputQueue.length > 0) {
+                    p.nextDir = inputQueue.shift();
+                }
+                
+                // 防呆：禁止 180 度直接回轉
+                if (
+                    (p.dir === 'UP' && p.nextDir === 'DOWN') ||
+                    (p.dir === 'DOWN' && p.nextDir === 'UP') ||
+                    (p.dir === 'LEFT' && p.nextDir === 'RIGHT') ||
+                    (p.dir === 'RIGHT' && p.nextDir === 'LEFT')
+                ) {
+                    p.nextDir = p.dir; // 維持原方向
+                } else {
+                    p.dir = p.nextDir;
+                }
+                
+                let nx = p.x;
+                let ny = p.y;
+                if (p.dir === 'UP') ny--;
+                if (p.dir === 'DOWN') ny++;
+                if (p.dir === 'LEFT') nx--;
+                if (p.dir === 'RIGHT') nx++;
+                
+                // 邊界判定：撞牆不會死，只會滑動或停止 (停止生長軌跡)
+                if (nx < 0 || nx >= WIDTH_GRID || ny < 0 || ny >= HEIGHT_GRID) {
+                    nx = p.x; ny = p.y; 
+                }
+                
+                // 如果有真實移動到新的一格
+                if (nx !== p.x || ny !== p.y) {
+                    
+                    // 1. 撞擊自己的軌跡 -> 死亡
+                    let hitOwn = p.trail.some(t => t.x === nx && t.y === ny);
+                    if (hitOwn) {
+                        killPlayer(p.id);
+                        continue;
+                    }
+                    
+                    // 2. 撞擊敵人的軌跡 -> 敵人死亡
+                    for (let otherId in players) {
+                        if (otherId == p.id) continue;
+                        let other = players[otherId];
+                        if (other.alive && other.trail.some(t => t.x === nx && t.y === ny)) {
+                            killPlayer(other.id);
+                        }
+                    }
+                    if (!p.alive) continue; // 如果互相撞擊死亡，跳過後續
+                    
+                    p.x = nx; p.y = ny;
+                    
+                    // 3. 檢查是否吃到道具
+                    for (let i = items.length - 1; i >= 0; i--) {
+                        if (items[i].x === p.x && items[i].y === p.y) {
+                            if (items[i].type === 'APPLE') {
+                                drawInitialTerritory(p.id, p.x, p.y, 2); // 瞬間擴展領地
+                            }
+                            items.splice(i, 1);
+                        }
+                    }
+                    
+                    // 4. 領地判定
+                    if (grid[ny][nx] === p.id) {
+                        // 回到自己的領地，閉合軌跡！
+                        if (p.trail.length > 0) {
+                            fillTerritory(p.id, p.trail);
+                            p.trail = [];
+                        }
+                    } else {
+                        // 在外面探索，留下軌跡
+                        p.trail.push({x: nx, y: ny});
+                    }
+                }
+            }
+            
+            if (gameActive) {
+                updateScores();
+            }
+        }
+
+        // 殺死玩家與清除領地
+        function killPlayer(id) {
+            let p = players[id];
+            p.alive = false;
+            p.trail = [];
+            // 清除該玩家的所有領地
+            for (let y = 0; y < HEIGHT_GRID; y++) {
+                for (let x = 0; x < WIDTH_GRID; x++) {
+                    if (grid[y][x] == id) grid[y][x] = 0;
+                }
+            }
+        }
+
+        // 強健的外部邊緣填充演算法 (Flood-fill from edges)
+        function fillTerritory(pid, trail) {
+            // 1. 將軌跡轉為實體領地屏障
+            trail.forEach(t => { grid[t.y][t.x] = pid; });
+            
+            let visited = Array(HEIGHT_GRID).fill(0).map(() => Array(WIDTH_GRID).fill(false));
+            let queue = [];
+            
+            // 2. 收集所有邊界上「非該玩家領地」的格子作為擴散起點
+            for (let y = 0; y < HEIGHT_GRID; y++) {
+                for (let x = 0; x < WIDTH_GRID; x++) {
+                    if (x === 0 || x === WIDTH_GRID - 1 || y === 0 || y === HEIGHT_GRID - 1) {
+                        if (grid[y][x] !== pid) {
+                            queue.push({x, y});
+                            visited[y][x] = true;
+                        }
+                    }
+                }
+            }
+            
+            // 3. BFS 擴散，標記所有能與外部連通的「外面」空間
+            let head = 0;
+            const dirs = [[0,1], [0,-1], [1,0], [-1,0]];
+            while (head < queue.length) {
+                let curr = queue[head++];
+                for (let [dx, dy] of dirs) {
+                    let nx = curr.x + dx, ny = curr.y + dy;
+                    if (nx >= 0 && nx < WIDTH_GRID && ny >= 0 && ny < HEIGHT_GRID) {
+                        if (!visited[ny][nx] && grid[ny][nx] !== pid) {
+                            visited[ny][nx] = true;
+                            queue.push({x: nx, y: ny});
+                        }
+                    }
+                }
+            }
+            
+            // 4. 未被訪問到的空間 (即被完全包圍的空間)，轉換為該玩家領地！
+            for (let y = 0; y < HEIGHT_GRID; y++) {
+                for (let x = 0; x < WIDTH_GRID; x++) {
+                    if (!visited[y][x] && grid[y][x] !== pid) {
+                        grid[y][x] = pid;
+                    }
+                }
+            }
+        }
+
+        // 更新分數與勝負檢查
+        function updateScores() {
+            let counts = { [PLAYER_ID]: 0, [AI_ID]: 0 };
+            for (let y = 0; y < HEIGHT_GRID; y++) {
+                for (let x = 0; x < WIDTH_GRID; x++) {
+                    if (grid[y][x] !== 0) {
+                        counts[grid[y][x]]++;
+                    }
+                }
+            }
+            
+            let total = WIDTH_GRID * HEIGHT_GRID;
+            players[PLAYER_ID].score = counts[PLAYER_ID];
+            players[AI_ID].score = counts[AI_ID];
+            
+            let pPercent = ((counts[PLAYER_ID] / total) * 100).toFixed(1);
+            let aPercent = ((counts[AI_ID] / total) * 100).toFixed(1);
+            
+            scoreP1.innerHTML = `🐻 小熊: ${pPercent}%`;
+            scoreAI.innerHTML = `🦊 狐狸: ${aPercent}%`;
+            
+            // 檢查勝負
+            if (!players[PLAYER_ID].alive) {
+                endGame('💥 遊戲結束', '你的小熊被擊敗了！\n撞到自己或被狐狸截斷軌跡了。', false);
+                return;
+            }
+            if (!players[AI_ID].alive) {
+                endGame('🏆 大獲全勝！', `你成功消滅了狐狸！\n最終佔領率：${pPercent}%`, true);
+                return;
+            }
+            if (counts[PLAYER_ID] / total >= 0.8) {
+                endGame('🎉 勝利！', `你達到了 80% 的絕對佔領率！\n狐狸已經無路可退了。`, true);
+                return;
+            }
+        }
+
+        function endGame(title, desc, isWin) {
+            gameActive = false;
+            clearInterval(logicInterval);
+            clearInterval(itemInterval);
+            
+            modalTitle.innerText = title;
+            modalDesc.innerText = desc;
+            
+            // 遊戲結束時，玩家可以再次選擇難度重新開始
+            modal.classList.add('show');
+        }
+
+        // 平滑渲染迴圈 (每秒 60 幀)
+        function render() {
+            // 清空畫布
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // 畫領地
+            for (let y = 0; y < HEIGHT_GRID; y++) {
+                for (let x = 0; x < WIDTH_GRID; x++) {
+                    if (grid[y] && grid[y][x] !== 0) {
+                        ctx.fillStyle = players[grid[y][x]].color;
+                        ctx.fillRect(x * GRID_SIZE, y * GRID_SIZE, GRID_SIZE, GRID_SIZE);
+                    }
+                }
+            }
+            
+            // 畫軌跡
+            for (let id in players) {
+                let p = players[id];
+                if (!p.alive || p.trail.length === 0) continue;
+                
+                ctx.fillStyle = p.trailColor;
+                p.trail.forEach(t => {
+                    // 讓軌跡稍微內縮，看起來更精緻
+                    ctx.fillRect(t.x * GRID_SIZE + 2, t.y * GRID_SIZE + 2, GRID_SIZE - 4, GRID_SIZE - 4);
+                });
+            }
+            
+            // 畫道具
+            items.forEach(item => {
+                ctx.font = `${GRID_SIZE}px sans-serif`;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                // 讓道具有一點浮動動畫
+                let floatY = Math.sin(Date.now() / 200) * 2;
+                ctx.fillText(item.emoji, item.x * GRID_SIZE + GRID_SIZE/2, item.y * GRID_SIZE + GRID_SIZE/2 + floatY);
+            });
+            
+            // 畫玩家與平滑移動
+            for (let id in players) {
+                let p = players[id];
+                if (!p.alive) continue;
+                
+                // 線性插值平滑移動 (Lerp)
+                p.renderX += (p.x * GRID_SIZE - p.renderX) * 0.35;
+                p.renderY += (p.y * GRID_SIZE - p.renderY) * 0.35;
+                
+                // 畫實體色塊頭部
+                ctx.fillStyle = p.trailColor;
+                ctx.fillRect(p.renderX, p.renderY, GRID_SIZE, GRID_SIZE);
+                
+                // 畫 Emoji
+                ctx.font = `${GRID_SIZE * 0.8}px sans-serif`;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(p.emoji, p.renderX + GRID_SIZE/2, p.renderY + GRID_SIZE/2);
+            }
+            
+            requestAnimationFrame(render);
+        }
+
+        // 鍵盤輸入監聽 (支援佇列緩衝，轉向更靈敏)
+        document.addEventListener('keydown', (e) => {
+            if (!gameActive) return;
+            let dir = null;
+            if (e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W') dir = 'UP';
+            if (e.key === 'ArrowDown' || e.key === 's' || e.key === 'S') dir = 'DOWN';
+            if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') dir = 'LEFT';
+            if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') dir = 'RIGHT';
+            
+            if (dir) {
+                e.preventDefault(); // 防止網頁捲動
+                if (inputQueue.length === 0 || inputQueue[inputQueue.length - 1] !== dir) {
+                    if (inputQueue.length < 2) inputQueue.push(dir);
+                }
+            }
+        });
+
+        // 啟動渲染迴圈
+        requestAnimationFrame(render);
+    </script>
+</body>
+</html>

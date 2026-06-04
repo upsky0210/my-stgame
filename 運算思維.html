@@ -1,0 +1,951 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>前進指揮官 - 運算思維入門 (Sky Games)</title>
+    <!-- 移除外部 API，改用安全字體堆疊以確保無外部追蹤 -->
+    <style>
+        :root {
+            /* 清新自然配色 (天空、草地、陽光) */
+            --bg-sky: #87CEEB;         /* 天空藍 */
+            --bg-grass: #8BC34A;       /* 草地綠 */
+            --grass-dark: #689F38;     /* 深草地綠 */
+            --wood-light: #FFF9C4;     /* 亮木頭/暖白 */
+            --wood-dark: #FFB300;      /* 暖黃/橘黃木頭 */
+            --wood-border: #F57F17;    /* 深橘色邊框 */
+            --ink-light: #795548;      /* 淺咖啡 */
+            --ink-dark: #3E2723;       /* 深咖啡 (用於文字與邊框) */
+            --accent-red: #FF5252;     /* 亮紅 */
+            --accent-green: #4CAF50;   /* 亮綠 */
+            --accent-blue: #448AFF;    /* 亮藍 */
+            --accent-yellow: #FFD54F;  /* 亮黃 */
+            
+            --grid-line: rgba(255, 255, 255, 0.4);
+            
+            /* 安全的圓潤/童趣字體堆疊 */
+            --font-main: 'Comic Sans MS', 'Chalkboard SE', '微軟正黑體', 'Microsoft JhengHei', system-ui, sans-serif;
+        }
+
+        * {
+            box-sizing: border-box;
+            touch-action: manipulation; /* 防止雙擊放大 */
+        }
+
+        html,
+        body {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            background-color: var(--bg-sky);
+            background-image: 
+                radial-gradient(circle at 15% 50px, rgba(255,255,255,0.8) 20px, transparent 21px),
+                radial-gradient(circle at 20% 70px, rgba(255,255,255,0.8) 30px, transparent 31px),
+                radial-gradient(circle at 26% 50px, rgba(255,255,255,0.8) 25px, transparent 26px);
+            font-family: var(--font-main);
+            color: var(--ink-dark);
+            user-select: none;
+            -webkit-user-select: none;
+            overflow: hidden;
+        }
+
+        /* 增加可愛的雲朵與太陽裝飾 */
+        body::before {
+            content: '☁️';
+            position: absolute;
+            top: 5%;
+            left: 10%;
+            font-size: 70px;
+            opacity: 0.8;
+            z-index: 0;
+            animation: float-cloud 20s linear infinite;
+        }
+        body::after {
+            content: '☀️';
+            position: absolute;
+            top: 3%;
+            right: 5%;
+            font-size: 90px;
+            z-index: 0;
+            animation: spin-slow 30s linear infinite;
+        }
+
+        @keyframes float-cloud {
+            0% { transform: translateX(0); }
+            50% { transform: translateX(50px); }
+            100% { transform: translateX(0); }
+        }
+
+        @keyframes spin-slow {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        #app {
+            display: grid;
+            grid-template-columns: 360px 1fr; /* 左側面板固定寬度 */
+            height: 100vh;
+            width: 100vw;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* ===== 手機與平板版面優化 ===== */
+        @media (max-width: 900px) {
+            #app {
+                grid-template-columns: 1fr;
+                grid-template-rows: 1fr auto; /* 地圖在上(1fr)，面板在下(auto) */
+                height: 100vh;
+                overflow: hidden;
+            }
+            .interactive-area {
+                order: -1; /* 讓遊戲區域在上方 */
+                padding: 10px !important;
+            }
+            .panel {
+                order: 1; /* 面板在下方 */
+                border-right: none !important;
+                border-top: 8px solid var(--wood-border);
+                max-height: 45vh; /* 限制面板高度，確保上方看得到地圖 */
+            }
+            /* 縮小標題與不必要的元素以節省空間 */
+            .title-emoji { display: none; }
+            .title-text { font-size: 24px !important; margin: 0 !important; }
+            .subtitle { display: none; }
+            .cmd-buttons { gap: 8px !important; margin-bottom: 10px !important; }
+            .seq-box { min-height: 45px !important; padding: 4px !important; margin-bottom: 10px !important; }
+            .section-title { font-size: 16px !important; margin-bottom: 6px !important; padding: 2px 8px !important; }
+        }
+
+        /* ===== Panel (Left) ===== */
+        .panel {
+            background: var(--wood-light);
+            border-right: 8px solid var(--wood-border);
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            box-shadow: 8px 0 20px rgba(0, 0, 0, 0.15);
+            z-index: 10;
+            position: relative;
+            overflow-y: auto;
+        }
+
+        .panel-content {
+            position: relative;
+            z-index: 2;
+            width: 100%;
+            max-width: 400px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .header-area {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+            position: relative;
+            margin-bottom: 10px;
+        }
+
+        #btn-sound {
+            position: absolute;
+            top: 0;
+            right: 0;
+            background: white;
+            border: 3px solid var(--ink-dark);
+            border-radius: 50%;
+            width: 44px;
+            height: 44px;
+            font-size: 20px;
+            cursor: pointer;
+            box-shadow: 0 4px 0 var(--ink-dark);
+            transition: transform 0.1s, box-shadow 0.1s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        #btn-sound:active {
+            transform: translateY(4px);
+            box-shadow: 0 0 0 var(--ink-dark);
+        }
+
+        .title-emoji {
+            font-size: 50px;
+            margin-bottom: 5px;
+            animation: float-slow 3s ease-in-out infinite;
+        }
+
+        .title-text {
+            font-size: 32px;
+            font-weight: 900;
+            color: var(--ink-dark);
+            margin: 0 0 4px;
+            text-align: center;
+            text-shadow: 2px 2px 0px white, -2px -2px 0px white, 2px -2px 0px white, -2px 2px 0px white;
+            letter-spacing: 2px;
+        }
+
+        .subtitle {
+            font-size: 16px;
+            color: var(--ink-light);
+            font-weight: 900;
+            text-align: center;
+            background: rgba(255,255,255,0.7);
+            padding: 4px 12px;
+            border-radius: 20px;
+        }
+
+        /* ===== Chunky 3D Buttons ===== */
+        .btn {
+            font-family: var(--font-main);
+            font-size: 20px;
+            font-weight: 900;
+            padding: 12px 20px;
+            background: white;
+            color: var(--ink-dark);
+            border: 4px solid var(--ink-dark);
+            border-radius: 16px;
+            cursor: pointer;
+            transition: transform 0.1s, box-shadow 0.1s;
+            box-shadow: 0 6px 0 var(--ink-dark);
+            width: 100%;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .btn:active {
+            transform: translateY(6px);
+            box-shadow: 0 0px 0 var(--ink-dark);
+        }
+
+        .btn.primary {
+            background: var(--accent-yellow);
+            color: var(--ink-dark);
+            font-size: 24px;
+        }
+
+        /* ===== Commander Controls ===== */
+        .controls-box {
+            background: white;
+            border: 4px solid var(--ink-dark);
+            border-radius: 20px;
+            padding: 16px;
+            width: 100%;
+            margin-bottom: 16px;
+            display: none;
+            flex-direction: column;
+            box-shadow: 0 8px 0 var(--ink-dark);
+        }
+
+        .controls-box.active {
+            display: flex;
+        }
+
+        .section-title {
+            font-size: 18px;
+            font-weight: 900;
+            margin-bottom: 12px;
+            color: var(--ink-dark);
+            background: var(--bg-sky);
+            padding: 6px 14px;
+            border-radius: 20px;
+            display: inline-block;
+            align-self: flex-start;
+            border: 2px solid var(--ink-dark);
+        }
+
+        .cmd-buttons {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .cmd-btn {
+            font-size: 32px;
+            padding: 12px 0;
+            background: white;
+            border: 4px solid var(--ink-dark);
+            border-radius: 16px;
+            cursor: pointer;
+            box-shadow: 0 6px 0 var(--ink-dark);
+            transition: transform 0.1s, box-shadow 0.1s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .cmd-btn:active {
+            transform: translateY(6px);
+            box-shadow: 0 0px 0 var(--ink-dark);
+        }
+        
+        .cmd-btn:nth-child(1) { background: #E1F5FE; }
+        .cmd-btn:nth-child(2) { background: #E8F5E9; }
+        .cmd-btn:nth-child(3) { background: #FFF3E0; }
+
+        .seq-box {
+            background: var(--wood-light);
+            border: 4px dashed var(--wood-border);
+            border-radius: 16px;
+            min-height: 64px;
+            padding: 8px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 16px;
+            align-content: flex-start;
+        }
+
+        .seq-item {
+            background: white;
+            color: var(--ink-dark);
+            border: 3px solid var(--ink-dark);
+            border-radius: 12px;
+            padding: 4px 10px;
+            font-size: 20px;
+            font-weight: 900;
+            animation: pop 0.2s ease-out;
+            box-shadow: 0 4px 0 var(--ink-dark);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .seq-item.active {
+            background: var(--accent-yellow);
+            transform: scale(1.1) translateY(4px);
+            box-shadow: 0 0 0 var(--ink-dark), 0 0 15px rgba(255, 213, 79, 0.8);
+        }
+
+        @keyframes pop {
+            0% { transform: scale(0); opacity: 0; }
+            80% { transform: scale(1.2); opacity: 1; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        /* ===== Interactive Area (Right) ===== */
+        .interactive-area {
+            position: relative;
+            background: transparent;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            overflow: hidden;
+        }
+
+        /* 森林地圖裝飾元素 */
+        .forest-deco {
+            position: absolute;
+            font-size: 60px;
+            z-index: 2;
+            filter: drop-shadow(0 4px 0 rgba(0,0,0,0.1));
+            pointer-events: none;
+        }
+        .tree-1 { top: 10%; left: 10%; font-size: 80px; }
+        .tree-2 { top: 75%; left: 5%; font-size: 70px; }
+        .tree-3 { top: 15%; right: 15%; font-size: 60px; }
+        .mushroom { top: 85%; right: 10%; font-size: 50px; }
+        
+        @media (max-width: 900px) {
+            .forest-deco { font-size: 40px; }
+            .tree-1 { font-size: 50px; }
+            .tree-2 { font-size: 45px; }
+        }
+
+        .screen {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 10;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        /* Grid Game Board */
+        #board-wrapper {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            width: 100%;
+            height: 100%;
+        }
+
+        #board-container {
+            position: relative;
+            background: var(--bg-grass);
+            border: 8px solid var(--ink-dark);
+            border-radius: 20px;
+            box-shadow: 0 16px 0 rgba(0, 0, 0, 0.15), inset 0 0 20px rgba(0,0,0,0.1);
+            overflow: hidden;
+            transform-origin: center center;
+            /* 讓版面在小螢幕自動縮放 */
+        }
+        
+        /* 響應式地圖縮放 */
+        @media (max-width: 600px) {
+            #board-container { transform: scale(0.7); }
+        }
+        @media (max-width: 400px) {
+            #board-container { transform: scale(0.55); }
+        }
+        @media (max-width: 330px) {
+            #board-container { transform: scale(0.45); }
+        }
+
+        .grid-bg {
+            position: absolute;
+            inset: 0;
+            display: grid;
+            pointer-events: none;
+            /* 可愛棋盤格草地風格 */
+            background-image: 
+                linear-gradient(var(--grid-line) 4px, transparent 4px),
+                linear-gradient(90deg, var(--grid-line) 4px, transparent 4px);
+            background-size: 70px 70px; /* 將由 JS 更新 */
+            background-color: var(--grass-dark);
+        }
+        /* 讓內部草地格子有深淺相間的感覺 */
+        .grid-bg::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background-image: 
+                linear-gradient(45deg, rgba(255,255,255,0.1) 25%, transparent 25%, transparent 75%, rgba(255,255,255,0.1) 75%, rgba(255,255,255,0.1)),
+                linear-gradient(45deg, rgba(255,255,255,0.1) 25%, transparent 25%, transparent 75%, rgba(255,255,255,0.1) 75%, rgba(255,255,255,0.1));
+            background-size: 140px 140px; /* 70 * 2 */
+            background-position: 0 0, 70px 70px;
+        }
+
+        .entity {
+            position: absolute;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 44px; /* 加大表情符號 */
+            transition: top 0.3s ease-in-out, left 0.3s ease-in-out, transform 0.3s ease-in-out;
+            z-index: 5;
+        }
+
+        .carrot {
+            animation: float 2s ease-in-out infinite;
+            filter: drop-shadow(0 4px 2px rgba(0,0,0,0.2));
+        }
+
+        .wall {
+            background-color: #8D6E63;
+            border: 4px solid #5D4037;
+            border-radius: 12px; /* 更圓潤的石頭/木箱感 */
+            box-shadow: inset 0 0 10px rgba(0,0,0,0.4), 0 6px 0 #4E342E;
+            z-index: 2;
+            /* 圓潤磚塊/木紋感 */
+            background-image: 
+                linear-gradient(45deg, rgba(255,255,255,0.1) 25%, transparent 25%),
+                linear-gradient(-45deg, rgba(255,255,255,0.1) 25%, transparent 25%);
+            background-size: 20px 20px;
+            transform: translateY(-4px); /* 增加立體感 */
+        }
+
+        #turtle {
+            z-index: 10;
+            filter: drop-shadow(0 6px 4px rgba(0, 0, 0, 0.4));
+        }
+
+        .turtle-arrow {
+            position: absolute;
+            top: -10px;
+            width: 0; 
+            height: 0; 
+            border-left: 10px solid transparent;
+            border-right: 10px solid transparent;
+            border-bottom: 16px solid var(--accent-red);
+            filter: drop-shadow(0 2px 2px rgba(0,0,0,0.3));
+        }
+
+        .shake {
+            animation: shake 0.4s cubic-bezier(.36,.07,.19,.97) both;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-8px); }
+        }
+
+        @keyframes float-slow {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-15px); }
+        }
+
+        @keyframes shake {
+            10%, 90% { transform: translate3d(-2px, 0, 0); }
+            20%, 80% { transform: translate3d(4px, 0, 0); }
+            30%, 50%, 70% { transform: translate3d(-6px, 0, 0); }
+            40%, 60% { transform: translate3d(6px, 0, 0); }
+        }
+
+        /* Confetti for winning */
+        .confetti {
+            position: absolute;
+            width: 12px;
+            height: 12px;
+            background-color: #f00;
+            border-radius: 4px;
+            animation: fall linear forwards;
+            z-index: 100;
+        }
+        @keyframes fall {
+            to { transform: translateY(100vh) rotate(720deg); }
+        }
+        
+        #message {
+            background: rgba(255,255,255,0.9);
+            padding: 8px 24px;
+            border-radius: 30px;
+            border: 4px solid var(--ink-dark);
+            box-shadow: 0 6px 0 var(--ink-dark);
+            margin-top: 24px; 
+            font-size: 24px; 
+            font-weight: 900; 
+            color: var(--ink-dark);
+            z-index: 20;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="app">
+        <!-- Left Panel -->
+        <div class="panel">
+            <div class="panel-content">
+                <div class="header-area">
+                    <button id="btn-sound" onclick="toggleSound()">🔊</button>
+                    <div class="title-emoji">🐢🥕</div>
+                    <h1 class="title-text">烏龜小指揮官</h1>
+                    <p class="subtitle">🌲 森林闖關地圖</p>
+                </div>
+
+                <div id="panel-start" style="width: 100%; display: flex; flex-direction: column; align-items: center; margin-top: 20px;">
+                    <button class="btn primary" style="padding: 16px; margin-top: 10px;" onclick="startGame()">▶ 點我開始挑戰！</button>
+                    <div style="margin-top: 20px; color: var(--ink-light); font-size: 16px; font-weight: 900; text-align: center; background: white; padding: 10px; border-radius: 12px; border: 2px dashed var(--ink-light);">
+                        幫助小烏龜吃到所有胡蘿蔔！
+                    </div>
+                </div>
+
+                <!-- Controls Box (Hidden initially) -->
+                <div id="panel-controls" class="controls-box">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+                        <div id="level-title" style="font-size:20px; font-weight:900; color:white; background:var(--accent-green); padding:6px 14px; border-radius:16px; border:3px solid var(--ink-dark); box-shadow: 0 4px 0 var(--ink-dark);">第 1 關
+                        </div>
+                        <div id="score-display" style="font-size:20px; font-weight:900; color:var(--ink-dark); background:var(--accent-yellow); padding:6px 14px; border-radius:16px; border:3px solid var(--ink-dark); box-shadow: 0 4px 0 var(--ink-dark);">⭐ 0
+                        </div>
+                    </div>
+
+                    <div class="section-title">1. 按鈕輸入指令 ⌨️</div>
+                    <div class="cmd-buttons">
+                        <button class="cmd-btn" onclick="addCmd('L')" title="左轉">↶</button>
+                        <button class="cmd-btn" onclick="addCmd('F')" title="前進">⬆️</button>
+                        <button class="cmd-btn" onclick="addCmd('R')" title="右轉">↷</button>
+                    </div>
+
+                    <div class="section-title">2. 你的指令 📋</div>
+                    <div class="seq-box" id="cmd-sequence"></div>
+
+                    <div style="display:flex; gap:12px; margin-bottom:12px;">
+                        <button class="btn" style="flex:1; padding:12px 0; background:#FFEBEE; font-size:18px;"
+                            onclick="clearCmds()">🗑️ 全清</button>
+                        <button class="btn" style="flex:1.5; padding:12px 0; background:#FFF9C4; font-size:18px;"
+                            onclick="undoCmd()">↩️ 退回一步</button>
+                    </div>
+                    <button class="btn primary" style="width:100%; padding:16px 0; font-size:26px;"
+                        onclick="runProgram()">🚀 出發！</button>
+
+                </div>
+
+                <!-- Game Over Box -->
+                <div id="panel-gameover"
+                    style="width: 100%; display: none; flex-direction: column; align-items: center; margin-top:20px;">
+                    <button class="btn primary" style="font-size:26px; padding:20px;" onclick="startGame()">🔄 再玩一次</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Interactive Area -->
+        <div class="interactive-area">
+            
+            <!-- 森林裝飾 -->
+            <div class="forest-deco tree-1">🌳</div>
+            <div class="forest-deco tree-2">🌲</div>
+            <div class="forest-deco tree-3">🌳</div>
+            <div class="forest-deco mushroom">🍄</div>
+
+            <!-- Start Screen -->
+            <div id="start-screen" class="screen">
+                <div style="font-size: 180px; opacity: 0.3; animation: float-slow 4s infinite;">🐢</div>
+            </div>
+
+            <!-- Game Screen -->
+            <div id="game-screen" class="screen hidden">
+                <div id="board-wrapper">
+                    <div id="board-container">
+                        <div id="grid-bg" class="grid-bg"></div>
+                        <div id="entities-layer"></div>
+                        <div id="turtle" class="entity">
+                            <div class="turtle-arrow"></div>
+                            <span>🐢</span>
+                        </div>
+                    </div>
+                </div>
+                <div id="message">
+                    等待你的指令...
+                </div>
+            </div>
+
+            <!-- End Screen -->
+            <div id="end-screen" class="screen hidden">
+                <div style="font-size: 120px; margin-bottom: 20px; animation: pop 0.5s ease-out; filter: drop-shadow(0 10px 0 rgba(0,0,0,0.1));">🏆</div>
+                <h2 class="title-text" style="font-size: 48px; margin-bottom: 20px; background: white; padding: 10px 30px; border-radius: 30px; border: 4px solid var(--ink-dark);">太棒了！全數通關！</h2>
+                <div style="font-size: 28px; font-weight: 900; margin: 20px 0; background:var(--accent-yellow); padding:16px 30px; border-radius:24px; border:4px solid var(--ink-dark); box-shadow: 0 8px 0 var(--ink-dark);">
+                    最終分數：<span id="final-score" style="color: var(--accent-red); font-size: 56px; text-shadow: 2px 2px 0 white;"></span>
+                </div>
+                <div id="new-record" class="hidden"
+                    style="background: white; padding: 10px 20px; border-radius: 20px; border: 3px solid var(--accent-green); color: var(--accent-green); font-size: 28px; font-weight: 900; margin-bottom: 20px; animation: float 1s infinite; box-shadow: 0 4px 0 var(--accent-green);">✨ 破紀錄啦！ ✨</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- Sound System ---
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        let soundEnabled = true;
+
+        function toggleSound() {
+            soundEnabled = !soundEnabled;
+            document.getElementById('btn-sound').innerText = soundEnabled ? '🔊' : '🔇';
+            if(soundEnabled && audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+        }
+
+        function beep(freq, duration, type = 'sine', volume = 0.1) {
+            if (!soundEnabled) return;
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = type;
+            osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+            gain.gain.setValueAtTime(volume, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+            osc.connect(gain).connect(audioCtx.destination);
+            osc.start();
+            osc.stop(audioCtx.currentTime + duration);
+        }
+
+        const SFX = {
+            addCmd: () => beep(800, 0.08, 'square', 0.08),
+            undo: () => beep(400, 0.08, 'triangle', 0.08),
+            clear: () => beep(300, 0.15, 'triangle', 0.1),
+            step: () => beep(500, 0.1, 'sine', 0.05), // cute step sound
+            bump: () => beep(150, 0.3, 'sawtooth', 0.15),
+            eat: () => { beep(900, 0.1, 'square', 0.08); setTimeout(() => beep(1200, 0.1, 'square', 0.08), 80); },
+            win: () => [523, 659, 784, 1047].forEach((f, i) => setTimeout(() => beep(f, 0.2, 'sine', 0.1), i * 150)),
+            fail: () => [300, 250, 200].forEach((f, i) => setTimeout(() => beep(f, 0.3, 'triangle', 0.1), i * 200))
+        };
+
+        // --- Game Levels & State ---
+        const LEVELS = [
+            { title: '第 1 關 · 直直走', cols: 6, rows: 3, start: { x: 0, y: 1 }, carrots: [{ x: 4, y: 1 }], walls: [], minSteps: 4 },
+            { title: '第 2 關 · 右轉下', cols: 6, rows: 4, start: { x: 0, y: 0 }, carrots: [{ x: 3, y: 3 }], walls: [], minSteps: 6 },
+            { title: '第 3 關 · 小心障礙', cols: 6, rows: 4, start: { x: 0, y: 1 }, carrots: [{ x: 5, y: 1 }], walls: [{ x: 2, y: 1 }, { x: 3, y: 1 }], minSteps: 7 },
+            { title: '第 4 關 · 雙蘿蔔', cols: 6, rows: 5, start: { x: 0, y: 0 }, carrots: [{ x: 3, y: 0 }, { x: 3, y: 3 }], walls: [{ x: 1, y: 1 }, { x: 2, y: 1 }, { x: 4, y: 1 }], minSteps: 9 },
+            { title: '第 5 關 · U型彎', cols: 6, rows: 4, start: { x: 0, y: 3 }, carrots: [{ x: 4, y: 3 }], walls: [{ x: 2, y: 3 }, { x: 2, y: 2 }, { x: 2, y: 1 }], minSteps: 9 },
+            { title: '第 6 關 · 兩頭跑', cols: 7, rows: 5, start: { x: 3, y: 4 }, carrots: [{ x: 1, y: 1 }, { x: 5, y: 1 }], walls: [{ x: 3, y: 3 }, { x: 3, y: 2 }], minSteps: 12 },
+            { title: '第 7 關 · S型步道', cols: 6, rows: 6, start: { x: 0, y: 0 }, carrots: [{ x: 5, y: 5 }], walls: [{ x: 1, y: 0 }, { x: 1, y: 1 }, { x: 4, y: 4 }, { x: 4, y: 5 }, { x: 2, y: 3 }, { x: 3, y: 3 }], minSteps: 12 },
+            { title: '第 8 關 · 蘿蔔派對', cols: 7, rows: 6, start: { x: 3, y: 5 }, carrots: [{ x: 1, y: 3 }, { x: 5, y: 3 }, { x: 3, y: 1 }], walls: [{ x: 2, y: 4 }, { x: 4, y: 4 }, { x: 3, y: 2 }], minSteps: 15 }
+        ];
+
+        let currLevelIdx = 0;
+        let cmds = [];
+        let isRunning = false;
+        let score = 0;
+
+        let tX = 0, tY = 0, tDir = 0; // dir: 0=R, 1=D, 2=L, 3=U
+        let currCarrots = [];
+
+        const cellSize = 70; // 放大一點比較可愛
+        const cmdMap = { 'F': '⬆️', 'L': '↶', 'R': '↷' };
+
+        // DOM Elements
+        const board = document.getElementById('board-container');
+        const gridBg = document.getElementById('grid-bg');
+        const layer = document.getElementById('entities-layer');
+        const turtle = document.getElementById('turtle');
+        const seqBox = document.getElementById('cmd-sequence');
+        const msgEl = document.getElementById('message');
+        const scoreDisp = document.getElementById('score-display');
+
+        function startGame() {
+            score = 0;
+            currLevelIdx = 0;
+            document.getElementById('panel-start').style.display = 'none';
+            document.getElementById('panel-gameover').style.display = 'none';
+            document.getElementById('panel-controls').classList.add('active');
+
+            document.getElementById('start-screen').classList.add('hidden');
+            document.getElementById('end-screen').classList.add('hidden');
+            document.getElementById('game-screen').classList.remove('hidden');
+            
+            // Try to initialize audio context on first interaction
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+
+            loadLevel();
+        }
+
+        function loadLevel() {
+            const lvl = LEVELS[currLevelIdx];
+            document.getElementById('level-title').innerText = lvl.title;
+            scoreDisp.innerText = `⭐ ${score}`;
+            msgEl.innerText = '等待你的指令...';
+            msgEl.style.color = 'var(--ink-dark)';
+            cmds = [];
+            renderCmds();
+
+            // Setup board
+            board.style.width = `${lvl.cols * cellSize}px`;
+            board.style.height = `${lvl.rows * cellSize}px`;
+
+            gridBg.style.backgroundSize = `${cellSize}px ${cellSize}px`;
+
+            layer.innerHTML = '';
+            currCarrots = JSON.parse(JSON.stringify(lvl.carrots));
+
+            // Spawn carrots
+            currCarrots.forEach((c, i) => {
+                const el = document.createElement('div');
+                el.className = 'entity carrot';
+                el.id = `carrot-${i}`;
+                el.innerText = '🥕';
+                el.style.width = el.style.height = `${cellSize}px`;
+                el.style.left = `${c.x * cellSize}px`;
+                el.style.top = `${c.y * cellSize}px`;
+                layer.appendChild(el);
+            });
+
+            // Spawn walls
+            lvl.walls.forEach(w => {
+                const el = document.createElement('div');
+                el.className = 'entity wall';
+                el.style.width = el.style.height = `${cellSize}px`;
+                el.style.left = `${w.x * cellSize}px`;
+                el.style.top = `${w.y * cellSize}px`;
+                layer.appendChild(el);
+            });
+
+            resetTurtle();
+        }
+
+        function resetTurtle() {
+            const lvl = LEVELS[currLevelIdx];
+            tX = lvl.start.x;
+            tY = lvl.start.y;
+            tDir = 0; // face Right
+            turtle.classList.remove('shake');
+            updateTurtlePos();
+        }
+
+        function updateTurtlePos() {
+            turtle.style.width = turtle.style.height = `${cellSize}px`;
+            turtle.style.left = `${tX * cellSize}px`;
+            turtle.style.top = `${tY * cellSize}px`;
+            const deg = [0, 90, 180, -90][tDir];
+            turtle.style.transform = `rotate(${deg}deg)`;
+        }
+
+        function addCmd(c) {
+            if (isRunning) return;
+            if (cmds.length >= 25) { 
+                msgEl.innerText = '指令太多囉，試著執行看看！'; 
+                return; 
+            }
+            SFX.addCmd();
+            cmds.push(c);
+            renderCmds();
+        }
+        
+        function undoCmd() {
+            if (isRunning || cmds.length === 0) return;
+            SFX.undo();
+            cmds.pop();
+            renderCmds();
+        }
+
+        function clearCmds() {
+            if (isRunning || cmds.length === 0) return;
+            SFX.clear();
+            cmds = [];
+            renderCmds();
+        }
+
+        function renderCmds() {
+            seqBox.innerHTML = '';
+            cmds.forEach((c, i) => {
+                const el = document.createElement('div');
+                el.className = 'seq-item';
+                el.id = `cmd-${i}`;
+                el.innerText = cmdMap[c];
+                seqBox.appendChild(el);
+            });
+        }
+
+        async function runProgram() {
+            if (isRunning) return;
+            if (cmds.length === 0) {
+                msgEl.innerText = '請先輸入指令喔！';
+                return;
+            }
+            isRunning = true;
+            msgEl.innerText = '小烏龜出發！🐢💨';
+            msgEl.style.color = 'var(--accent-blue)';
+
+            resetTurtle();
+            // Reset carrots visually
+            currCarrots = JSON.parse(JSON.stringify(LEVELS[currLevelIdx].carrots));
+            document.querySelectorAll('.carrot').forEach(el => {
+                el.style.transform = 'scale(1)';
+                el.style.opacity = '1';
+            });
+
+            let bump = false;
+
+            for (let i = 0; i < cmds.length; i++) {
+                document.querySelectorAll('.seq-item').forEach(e => e.classList.remove('active'));
+                document.getElementById(`cmd-${i}`).classList.add('active');
+
+                const c = cmds[i];
+                if (c === 'L') tDir = (tDir + 3) % 4;
+                else if (c === 'R') tDir = (tDir + 1) % 4;
+                else if (c === 'F') {
+                    let nx = tX, ny = tY;
+                    if (tDir === 0) nx++;
+                    if (tDir === 1) ny++;
+                    if (tDir === 2) nx--;
+                    if (tDir === 3) ny--;
+
+                    const lvl = LEVELS[currLevelIdx];
+                    if (nx < 0 || nx >= lvl.cols || ny < 0 || ny >= lvl.rows) {
+                        bump = true;
+                    } else if (lvl.walls.some(w => w.x === nx && w.y === ny)) {
+                        bump = true;
+                    } else {
+                        tX = nx; tY = ny;
+                    }
+                }
+
+                if (bump) { 
+                    SFX.bump(); 
+                    turtle.classList.add('shake');
+                    break; 
+                } else {
+                    SFX.step();
+                }
+
+                updateTurtlePos();
+
+                // check eat
+                currCarrots.forEach((car, idx) => {
+                    if (!car.eaten && car.x === tX && car.y === tY) {
+                        car.eaten = true;
+                        SFX.eat();
+                        const carEl = document.getElementById(`carrot-${idx}`);
+                        carEl.style.transform = 'scale(0) rotate(180deg)';
+                        carEl.style.opacity = '0';
+                    }
+                });
+
+                await new Promise(r => setTimeout(r, 500)); // 放慢一點讓小朋友看清楚
+            }
+
+            document.querySelectorAll('.seq-item').forEach(e => e.classList.remove('active'));
+
+            if (bump) {
+                msgEl.innerText = '唉呀，撞到了！😭';
+                msgEl.style.color = 'var(--accent-red)';
+                SFX.fail();
+                isRunning = false;
+                return;
+            }
+
+            if (currCarrots.every(c => c.eaten)) {
+                msgEl.innerText = '恭喜過關！🎉';
+                msgEl.style.color = 'var(--accent-green)';
+                SFX.win();
+
+                // calculate score
+                const lvl = LEVELS[currLevelIdx];
+                let pts = 100;
+                if (cmds.length > lvl.minSteps) pts -= (cmds.length - lvl.minSteps) * 5;
+                score += Math.max(10, pts);
+                scoreDisp.innerText = `⭐ ${score}`;
+
+                setTimeout(() => {
+                    currLevelIdx++;
+                    if (currLevelIdx >= LEVELS.length) showEnd();
+                    else loadLevel();
+                    isRunning = false;
+                }, 2000); // 延長過關等待時間
+            } else {
+                msgEl.innerText = '還有胡蘿蔔沒吃到喔！👀';
+                msgEl.style.color = 'var(--accent-red)';
+                SFX.fail();
+                isRunning = false;
+            }
+        }
+        
+        function createConfetti() {
+            const colors = ['#ff5252', '#4caf50', '#448aff', '#ffd54f'];
+            for(let i=0; i<50; i++) {
+                const conf = document.createElement('div');
+                conf.className = 'confetti';
+                conf.style.left = Math.random() * 100 + 'vw';
+                conf.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+                conf.style.animationDuration = (Math.random() * 2 + 2) + 's';
+                conf.style.animationDelay = (Math.random() * 1) + 's';
+                document.getElementById('end-screen').appendChild(conf);
+            }
+        }
+
+        function showEnd() {
+            document.getElementById('game-screen').classList.add('hidden');
+            document.getElementById('end-screen').classList.remove('hidden');
+            document.getElementById('panel-controls').classList.remove('active');
+            document.getElementById('panel-gameover').style.display = 'flex';
+
+            document.getElementById('final-score').innerText = score;
+            createConfetti();
+
+            const oldHigh = localStorage.getItem('edtech-unit6-score') || 0;
+            if (score > oldHigh) {
+                localStorage.setItem('edtech-unit6-score', score);
+                document.getElementById('new-record').classList.remove('hidden');
+                SFX.win();
+            } else {
+                document.getElementById('new-record').classList.add('hidden');
+            }
+        }
+    </script>
+</body>
+
+</html>

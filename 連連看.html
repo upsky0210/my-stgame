@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>可愛動物連連看</title>
+    <style>
+        body {
+            font-family: 'Comic Sans MS', '微軟正黑體', sans-serif;
+            background-color: #fdf6e3;
+            text-align: center;
+            margin: 0;
+            padding: 20px;
+            user-select: none;
+        }
+        h2 {
+            color: #d35400;
+            margin-bottom: 10px;
+            font-size: 32px;
+        }
+        .info-panel {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 20px;
+            margin-bottom: 15px;
+        }
+        #timer {
+            font-size: 24px;
+            font-weight: bold;
+            color: #e74c3c;
+            background-color: #fff;
+            padding: 5px 15px;
+            border-radius: 8px;
+            border: 2px dashed #e74c3c;
+        }
+        button {
+            background-color: #f39c12;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            font-size: 18px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            transition: 0.2s;
+        }
+        button:hover {
+            background-color: #e67e22;
+            transform: translateY(-2px);
+        }
+        button:active {
+            transform: translateY(0);
+        }
+        #game-board {
+            display: inline-grid;
+            /* 擴大版面：8欄位 + 左右各1緩衝 = 10，格子放大到 65px */
+            grid-template-columns: repeat(10, 65px);
+            grid-template-rows: repeat(8, 65px); 
+            gap: 4px;
+            background-color: #fff;
+            padding: 15px;
+            border-radius: 12px;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.15);
+        }
+        .tile {
+            width: 65px;
+            height: 65px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 42px; /* 放大圖案 */
+            background-color: #ffeaa7;
+            border: 3px solid #fdcb6e;
+            border-radius: 10px;
+            cursor: pointer;
+            box-sizing: border-box;
+            transition: all 0.1s;
+        }
+        .tile:hover {
+            background-color: #fff1c1;
+        }
+        .tile.selected {
+            background-color: #ff7675;
+            border-color: #d63031;
+            transform: scale(1.08);
+        }
+        .tile.empty {
+            background-color: transparent;
+            border: none;
+            cursor: default;
+        }
+        #message {
+            margin-top: 20px;
+            font-size: 24px;
+            color: #27ae60;
+            font-weight: bold;
+            min-height: 35px;
+        }
+    </style>
+</head>
+<body>
+
+    <h2>🐾 動物連連看 🐾</h2>
+    <div class="info-panel">
+        <div id="timer">時間: 00:00</div>
+        <button onclick="initGame()">重新開始</button>
+        <button onclick="shuffleBoard()">找不到？洗牌</button>
+    </div>
+    
+    <div id="game-board"></div>
+    <div id="message"></div>
+
+    <script>
+        const ROWS = 6;
+        const COLS = 8;
+        const ICONS = ['🐶','🐱','🐭','🐹','🐰','🦊','🐻','🐼','🐨','🐯','🦁','🐮'];
+        
+        let board = [];
+        let selectedTile = null;
+        let pairsFound = 0;
+        
+        // 計時器變數
+        let timerInterval = null;
+        let secondsElapsed = 0;
+
+        function startTimer() {
+            clearInterval(timerInterval);
+            secondsElapsed = 0;
+            document.getElementById('timer').innerText = "時間: 00:00";
+            timerInterval = setInterval(() => {
+                secondsElapsed++;
+                let m = Math.floor(secondsElapsed / 60).toString().padStart(2, '0');
+                let s = (secondsElapsed % 60).toString().padStart(2, '0');
+                document.getElementById('timer').innerText = `時間: ${m}:${s}`;
+            }, 1000);
+        }
+
+        function stopTimer() {
+            clearInterval(timerInterval);
+        }
+
+        function initGame() {
+            pairsFound = 0;
+            selectedTile = null;
+            document.getElementById('message').innerText = "";
+            startTimer();
+            
+            // 初始化二維陣列 (加上外圍一圈透明的緩衝區)
+            board = [];
+            for (let r = 0; r < ROWS + 2; r++) {
+                board[r] = [];
+                for (let c = 0; c < COLS + 2; c++) {
+                    board[r][c] = null; 
+                }
+            }
+
+            // 準備成對的動物圖案
+            let iconsPool = [];
+            ICONS.forEach(icon => { iconsPool.push(icon, icon); }); // 每種動物2對(4隻)
+            iconsPool.sort(() => Math.random() - 0.5);
+
+            let emptyCells = [];
+            for(let r = 1; r <= ROWS; r++) {
+                for(let c = 1; c <= COLS; c++) {
+                    emptyCells.push({r, c});
+                }
+            }
+            emptyCells.sort(() => Math.random() - 0.5);
+
+            let remainingTiles = [];
+            
+            // 特殊發牌邏輯：提高相鄰配對機率
+            for (let i = 0; i < iconsPool.length; i++) {
+                let icon = iconsPool[i];
+                let placedAdjacent = false;
+                
+                // 40% 的機率強制將這對動物放在相鄰的位置
+                if (Math.random() < 0.40) { 
+                    let emptyIdx = emptyCells.findIndex(cell => board[cell.r][cell.c] === null);
+                    if (emptyIdx !== -1) {
+                        let cell = emptyCells[emptyIdx];
+                        let neighbors = [
+                            {r: cell.r, c: cell.c+1}, {r: cell.r+1, c: cell.c},
+                            {r: cell.r, c: cell.c-1}, {r: cell.r-1, c: cell.c}
+                        ].filter(n => n.r >= 1 && n.r <= ROWS && n.c >= 1 && n.c <= COLS && board[n.r][n.c] === null);
+
+                        if (neighbors.length > 0) {
+                            let neighbor = neighbors[Math.floor(Math.random() * neighbors.length)];
+                            board[cell.r][cell.c] = icon;
+                            board[neighbor.r][neighbor.c] = icon;
+                            placedAdjacent = true;
+                        }
+                    }
+                }
+                
+                // 如果沒有相鄰成功，就丟進剩下的隨機池
+                if (!placedAdjacent) {
+                    remainingTiles.push(icon, icon);
+                }
+            }
+
+            // 將剩下的圖案隨機填滿剩餘空位
+            remainingTiles.sort(() => Math.random() - 0.5);
+            let tIdx = 0;
+            for(let r = 1; r <= ROWS; r++) {
+                for(let c = 1; c <= COLS; c++) {
+                    if (board[r][c] === null) {
+                        board[r][c] = remainingTiles[tIdx++];
+                    }
+                }
+            }
+            
+            renderBoard();
+        }
+
+        function renderBoard() {
+            const gameBoard = document.getElementById('game-board');
+            gameBoard.innerHTML = '';
+            
+            for (let r = 0; r < ROWS + 2; r++) {
+                for (let c = 0; c < COLS + 2; c++) {
+                    const tileDiv = document.createElement('div');
+                    
+                    if (board[r][c] === null) {
+                        tileDiv.className = 'tile empty';
+                    } else {
+                        tileDiv.className = 'tile';
+                        tileDiv.innerText = board[r][c];
+                        tileDiv.onclick = () => handleTileClick(r, c);
+                        
+                        if (selectedTile && selectedTile.r === r && selectedTile.c === c) {
+                            tileDiv.classList.add('selected');
+                        }
+                    }
+                    gameBoard.appendChild(tileDiv);
+                }
+            }
+        }
+
+        function handleTileClick(r, c) {
+            if (board[r][c] === null) return;
+
+            if (!selectedTile) {
+                selectedTile = {r, c};
+                renderBoard();
+                return;
+            }
+
+            if (selectedTile.r === r && selectedTile.c === c) {
+                selectedTile = null;
+                renderBoard();
+                return;
+            }
+
+            const p1 = selectedTile;
+            const p2 = {r, c};
+
+            if (board[p1.r][p1.c] === board[p2.r][p2.c] && canConnect(p1, p2)) {
+                board[p1.r][p1.c] = null;
+                board[p2.r][p2.c] = null;
+                pairsFound++;
+                selectedTile = null;
+                renderBoard();
+
+                if (pairsFound === (ROWS * COLS) / 2) {
+                    stopTimer();
+                    document.getElementById('message').innerText = `🎉 恭喜過關！共花費 ${document.getElementById('timer').innerText.replace('時間: ', '')} 🎉`;
+                }
+            } else {
+                selectedTile = {r, c};
+                renderBoard();
+            }
+        }
+
+        // --- 連線邏輯演算法 ---
+        function isEmpty(r, c) { return board[r][c] === null; }
+
+        function checkDirect(p1, p2) {
+            if (p1.r === p2.r) {
+                let minC = Math.min(p1.c, p2.c);
+                let maxC = Math.max(p1.c, p2.c);
+                for (let c = minC + 1; c < maxC; c++) {
+                    if (!isEmpty(p1.r, c)) return false;
+                }
+                return true;
+            }
+            if (p1.c === p2.c) {
+                let minR = Math.min(p1.r, p2.r);
+                let maxR = Math.max(p1.r, p2.r);
+                for (let r = minR + 1; r < maxR; r++) {
+                    if (!isEmpty(r, p1.c)) return false;
+                }
+                return true;
+            }
+            return false;
+        }
+
+        function check1Turn(p1, p2) {
+            let corner1 = {r: p1.r, c: p2.c};
+            if (isEmpty(corner1.r, corner1.c) && checkDirect(p1, corner1) && checkDirect(corner1, p2)) return true;
+            let corner2 = {r: p2.r, c: p1.c};
+            if (isEmpty(corner2.r, corner2.c) && checkDirect(p1, corner2) && checkDirect(corner2, p2)) return true;
+            return false;
+        }
+
+        function check2Turns(p1, p2) {
+            for (let c = 0; c < COLS + 2; c++) {
+                if (c === p1.c) continue;
+                let p3 = {r: p1.r, c: c};
+                if (isEmpty(p3.r, p3.c) && checkDirect(p1, p3)) {
+                    if (check1Turn(p3, p2)) return true;
+                }
+            }
+            for (let r = 0; r < ROWS + 2; r++) {
+                if (r === p1.r) continue;
+                let p3 = {r: r, c: p1.c};
+                if (isEmpty(p3.r, p3.c) && checkDirect(p1, p3)) {
+                    if (check1Turn(p3, p2)) return true;
+                }
+            }
+            return false;
+        }
+
+        function canConnect(p1, p2) {
+            if (checkDirect(p1, p2)) return true;
+            if (check1Turn(p1, p2)) return true;
+            if (check2Turns(p1, p2)) return true;
+            return false;
+        }
+
+        function shuffleBoard() {
+            let remainingTiles = [];
+            for (let r = 1; r <= ROWS; r++) {
+                for (let c = 1; c <= COLS; c++) {
+                    if (board[r][c] !== null) {
+                        remainingTiles.push(board[r][c]);
+                    }
+                }
+            }
+            remainingTiles.sort(() => Math.random() - 0.5);
+            let idx = 0;
+            for (let r = 1; r <= ROWS; r++) {
+                for (let c = 1; c <= COLS; c++) {
+                    if (board[r][c] !== null) {
+                        board[r][c] = remainingTiles[idx++];
+                    }
+                }
+            }
+            selectedTile = null;
+            renderBoard();
+        }
+
+        // 啟動遊戲
+        initGame();
+    </script>
+</body>
+</html>

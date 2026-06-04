@@ -1,0 +1,1231 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>虎斑貓解謎大冒險</title>
+<style>
+    :root {
+        --bg:      oklch(97% 0.018 70);
+        --surface: oklch(99% 0.008 70);
+        --fg:      oklch(22% 0.02 50);
+        --muted:   oklch(50% 0.018 50);
+        --border:  oklch(90% 0.014 70);
+        --accent:  oklch(64% 0.13 28);
+
+        --font-display: 'Tiempos Headline', 'Newsreader', 'Iowan Old Style', Georgia, serif;
+        --font-body:    'Söhne', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    }
+
+    * {
+        box-sizing: border-box;
+        -webkit-tap-highlight-color: transparent;
+    }
+
+    html {
+        min-height: 100%;
+        background: var(--bg);
+    }
+
+    body {
+        margin: 0;
+        padding: 8px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 100svh;
+        background:
+            radial-gradient(circle at 12% 18%, oklch(99% 0.025 85), transparent 28%),
+            linear-gradient(180deg, var(--bg), oklch(93% 0.03 95));
+        font-family: var(--font-body);
+        color: var(--fg);
+        overflow: hidden;
+        touch-action: none;
+    }
+
+    #game-container {
+        position: relative;
+        width: min(calc(100vw - 16px), calc((100svh - 16px) * 1.6), 800px);
+        aspect-ratio: 8 / 5;
+        background: var(--surface);
+        border: 2px solid var(--border);
+        box-shadow: inset 0 1px 0 rgba(255,255,255,0.8), 0 16px 38px rgba(112, 78, 48, 0.16);
+        border-radius: 16px;
+        overflow: hidden;
+    }
+
+    canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+    }
+
+    /* UI Layer Styles */
+    #ui-layer {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        padding: clamp(16px, 4vw, 34px);
+        background: color-mix(in oklch, var(--bg) 72%, transparent);
+        backdrop-filter: blur(8px);
+        transition: opacity 0.3s ease;
+    }
+
+    #ui-layer.hidden {
+        opacity: 0;
+        pointer-events: none;
+    }
+
+    .ui-panel {
+        width: min(90%, 520px);
+        background: color-mix(in oklch, var(--surface) 94%, white);
+        padding: clamp(22px, 5vw, 42px);
+        border-radius: 16px;
+        text-align: center;
+        border: 1px solid var(--border);
+        box-shadow: inset 0 1px 0 rgba(255,255,255,0.9), 0 18px 42px rgba(96, 64, 38, 0.18);
+        pointer-events: auto;
+    }
+
+    h1 {
+        margin: 0 0 20px 0;
+        color: var(--fg);
+        font-family: var(--font-display);
+        font-size: clamp(30px, 6vw, 46px);
+        line-height: 1.05;
+        text-wrap: balance;
+    }
+    
+    h2 {
+        color: var(--accent);
+        margin-top: 0;
+        font-family: var(--font-display);
+        font-size: clamp(26px, 5vw, 36px);
+    }
+
+    p.controls {
+        color: var(--muted);
+        font-size: clamp(15px, 2.5vw, 18px);
+        line-height: 1.6;
+        margin-bottom: 30px;
+    }
+
+    button {
+        background: var(--accent);
+        color: white;
+        border: none;
+        min-height: 48px;
+        padding: 14px 28px;
+        font-size: 18px;
+        font-weight: 800;
+        border-radius: 50px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        font-family: inherit;
+        box-shadow: 0 8px 20px color-mix(in oklch, var(--accent) 28%, transparent);
+    }
+
+    button:hover {
+        filter: saturate(1.08) brightness(0.96);
+        transform: translateY(-2px);
+    }
+
+    /* HUD */
+    #hud {
+        position: absolute;
+        top: clamp(10px, 2.2vw, 18px);
+        left: clamp(10px, 2.2vw, 18px);
+        right: clamp(10px, 2.2vw, 18px);
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        justify-content: space-between;
+        pointer-events: none;
+        color: var(--fg);
+        font-size: clamp(12px, 2.4vw, 18px);
+        font-weight: 800;
+        text-shadow: none;
+        z-index: 2;
+    }
+
+    .hud-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        min-height: 34px;
+        padding: 6px 12px;
+        background: color-mix(in oklch, var(--surface) 88%, transparent);
+        border: 1px solid color-mix(in oklch, var(--border) 75%, transparent);
+        border-radius: 999px;
+        box-shadow: 0 6px 16px rgba(96, 64, 38, 0.08);
+    }
+
+    #level-display,
+    #score-display,
+    #key-display {
+        color: var(--fg);
+    }
+
+    #feedback-layer {
+        position: absolute;
+        left: 50%;
+        top: 18%;
+        transform: translateX(-50%);
+        z-index: 3;
+        min-width: 180px;
+        max-width: 80%;
+        padding: 10px 16px;
+        border-radius: 999px;
+        border: 1px solid var(--border);
+        background: color-mix(in oklch, var(--surface) 92%, transparent);
+        color: var(--fg);
+        font-weight: 900;
+        font-size: clamp(15px, 3vw, 22px);
+        text-align: center;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.18s ease, transform 0.18s ease;
+        box-shadow: 0 12px 24px rgba(96, 64, 38, 0.13);
+    }
+
+    #feedback-layer.show {
+        opacity: 1;
+        transform: translateX(-50%) translateY(-4px);
+    }
+
+    #touch-controls {
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: 10px;
+        z-index: 4;
+        display: none;
+        justify-content: space-between;
+        align-items: flex-end;
+        padding: 0 clamp(10px, 3vw, 22px);
+        pointer-events: none;
+        opacity: 0;
+        transition: opacity 0.18s ease;
+    }
+
+    #game-container.playing #touch-controls {
+        opacity: 1;
+    }
+
+    .touch-group {
+        display: flex;
+        gap: 10px;
+        pointer-events: auto;
+    }
+
+    .touch-btn {
+        width: clamp(52px, 13vw, 68px);
+        height: clamp(52px, 13vw, 68px);
+        border: 1px solid color-mix(in oklch, var(--fg) 12%, var(--border));
+        border-radius: 16px;
+        background: color-mix(in oklch, var(--surface) 88%, transparent);
+        color: var(--fg);
+        box-shadow: inset 0 1px 0 rgba(255,255,255,0.8), 0 8px 18px rgba(96, 64, 38, 0.14);
+        font-size: 26px;
+        font-weight: 900;
+        line-height: 1;
+        user-select: none;
+        touch-action: none;
+    }
+
+    .touch-btn.jump {
+        width: clamp(76px, 18vw, 94px);
+        background: color-mix(in oklch, var(--accent) 88%, white);
+        color: white;
+    }
+
+    .touch-btn:active {
+        transform: translateY(2px) scale(0.98);
+    }
+
+    @media (hover: none), (max-width: 760px) {
+        body {
+            padding: 6px;
+        }
+
+        #game-container {
+            width: min(calc(100vw - 12px), calc((100svh - 12px) * 1.6), 800px);
+            border-radius: 12px;
+        }
+
+        #touch-controls {
+            display: flex;
+        }
+
+        #hud {
+            font-size: 12px;
+        }
+
+        .hud-pill {
+            min-height: 30px;
+            padding: 5px 9px;
+        }
+    }
+</style>
+</head>
+<body>
+
+<div id="game-container">
+    <div id="hud">
+        <div class="hud-pill" id="level-display">第 1 關 / 共 20 關</div>
+        <div class="hud-pill" id="score-display">金幣 0</div>
+        <div class="hud-pill" id="key-display">找鑰匙</div>
+    </div>
+    
+    <canvas id="gameCanvas" width="800" height="500"></canvas>
+    <div id="feedback-layer" aria-live="polite"></div>
+    
+    <div id="ui-layer">
+        <div class="ui-panel" id="menu-panel">
+            <h1>虎斑貓解謎大冒險</h1>
+            <p class="controls">
+                拿到鑰匙，打開出口。<br>
+                電腦：方向鍵移動，方向鍵上或空白鍵跳躍。<br>
+                手機：使用畫面下方的大按鈕，也可以二段跳。
+            </p>
+            <button id="start-btn">開始遊戲</button>
+        </div>
+        
+        <div class="ui-panel hidden" id="gameover-panel" style="display:none;">
+            <h2>再試一次</h2>
+            <p>小心尖刺與空洞。這一關可以重新挑戰。</p>
+            <button id="retry-btn">重新挑戰本關</button>
+        </div>
+
+        <div class="ui-panel hidden" id="levelcomplete-panel" style="display:none;">
+            <h2>過關了</h2>
+            <p id="level-stats">本關完成，準備進入下一關。</p>
+            <button id="next-btn">進入下一關</button>
+        </div>
+
+        <div class="ui-panel hidden" id="victory-panel" style="display:none;">
+            <h1>全部通關</h1>
+            <p>你完成了 20 個關卡，虎斑貓順利回家了。</p>
+            <button id="home-btn">回到首頁</button>
+        </div>
+    </div>
+    <div id="touch-controls" aria-label="手機操作按鈕">
+        <div class="touch-group">
+            <button class="touch-btn" type="button" data-control="left" aria-label="向左移動">‹</button>
+            <button class="touch-btn" type="button" data-control="right" aria-label="向右移動">›</button>
+        </div>
+        <div class="touch-group">
+            <button class="touch-btn jump" type="button" data-control="jump" aria-label="跳躍">跳</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    const gameContainer = document.getElementById('game-container');
+
+    // UI Elements
+    const uiLayer = document.getElementById('ui-layer');
+    const menuPanel = document.getElementById('menu-panel');
+    const gameoverPanel = document.getElementById('gameover-panel');
+    const levelcompletePanel = document.getElementById('levelcomplete-panel');
+    const victoryPanel = document.getElementById('victory-panel');
+    
+    const levelDisplay = document.getElementById('level-display');
+    const scoreDisplay = document.getElementById('score-display');
+    const keyDisplay = document.getElementById('key-display');
+    const levelStats = document.getElementById('level-stats');
+    const feedbackLayer = document.getElementById('feedback-layer');
+
+    // Game State
+    let gameState = 'MENU'; // MENU, PLAYING, LEVEL_COMPLETE, GAME_OVER, VICTORY
+    let currentLevel = 1;
+    const maxLevels = 20;
+    let score = 0;
+    let feedbackTimer = null;
+
+    // Input handling
+    const keys = { right: false, left: false, up: false, jumpPressed: false };
+
+    function requestJump() {
+        if(!keys.jumpPressed) {
+            keys.up = true;
+            keys.jumpPressed = true;
+        }
+    }
+
+    function releaseJump() {
+        keys.jumpPressed = false;
+    }
+
+    function resetControls() {
+        keys.left = false;
+        keys.right = false;
+        keys.up = false;
+        keys.jumpPressed = false;
+    }
+
+    document.addEventListener('keydown', (e) => {
+        if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' '].includes(e.key)) e.preventDefault();
+        if(e.key === 'ArrowRight') keys.right = true;
+        if(e.key === 'ArrowLeft') keys.left = true;
+        if(e.key === 'ArrowUp' || e.key === ' ') requestJump();
+    });
+
+    document.addEventListener('keyup', (e) => {
+        if(e.key === 'ArrowRight') keys.right = false;
+        if(e.key === 'ArrowLeft') keys.left = false;
+        if(e.key === 'ArrowUp' || e.key === ' ') releaseJump();
+    });
+
+    document.querySelectorAll('.touch-btn').forEach(btn => {
+        const control = btn.dataset.control;
+        const press = (e) => {
+            e.preventDefault();
+            if(gameState !== 'PLAYING') return;
+            if(control === 'left') keys.left = true;
+            if(control === 'right') keys.right = true;
+            if(control === 'jump') requestJump();
+        };
+        const release = (e) => {
+            e.preventDefault();
+            if(control === 'left') keys.left = false;
+            if(control === 'right') keys.right = false;
+            if(control === 'jump') releaseJump();
+        };
+
+        btn.addEventListener('pointerdown', press);
+        btn.addEventListener('pointerup', release);
+        btn.addEventListener('pointercancel', release);
+        btn.addEventListener('pointerleave', release);
+    });
+
+    function updateHud() {
+        levelDisplay.innerText = `第 ${currentLevel} 關 / 共 ${maxLevels} 關`;
+        scoreDisplay.innerText = `金幣 ${score}`;
+        keyDisplay.innerText = levelObj.key.collected ? '鑰匙已拿到' : '找鑰匙';
+    }
+
+    function showFeedback(message) {
+        feedbackLayer.textContent = message;
+        feedbackLayer.classList.add('show');
+        clearTimeout(feedbackTimer);
+        feedbackTimer = setTimeout(() => feedbackLayer.classList.remove('show'), 1200);
+    }
+
+    let floatingTexts = [];
+    function createFloatingText(x, y, text, color) {
+        floatingTexts.push({ x, y, text, color, life: 1 });
+    }
+
+    function updateFloatingTexts() {
+        for(let i = floatingTexts.length - 1; i >= 0; i--) {
+            floatingTexts[i].y -= 0.6;
+            floatingTexts[i].life -= 0.018;
+            if(floatingTexts[i].life <= 0) floatingTexts.splice(i, 1);
+        }
+    }
+
+    function drawFloatingTexts() {
+        ctx.save();
+        ctx.textAlign = 'center';
+        ctx.font = '900 20px system-ui, sans-serif';
+        floatingTexts.forEach(t => {
+            ctx.globalAlpha = Math.max(t.life, 0);
+            ctx.fillStyle = t.color;
+            ctx.strokeStyle = 'rgba(255, 251, 239, 0.9)';
+            ctx.lineWidth = 4;
+            ctx.strokeText(t.text, t.x, t.y);
+            ctx.fillText(t.text, t.x, t.y);
+        });
+        ctx.restore();
+        ctx.globalAlpha = 1;
+    }
+
+    // Particle System
+    let particles = [];
+    function createParticles(x, y, color, count, speed = 2) {
+        for(let i=0; i<count; i++) {
+            particles.push({
+                x: x, y: y,
+                vx: (Math.random() - 0.5) * speed * 2,
+                vy: (Math.random() - 0.5) * speed * 2 - 1,
+                life: 1.0, decay: Math.random() * 0.02 + 0.02,
+                color: color, size: Math.random() * 4 + 2
+            });
+        }
+    }
+    
+    function updateParticles() {
+        for(let i = particles.length - 1; i >= 0; i--) {
+            let p = particles[i];
+            p.x += p.vx;
+            p.y += p.vy;
+            p.life -= p.decay;
+            if(p.life <= 0) particles.splice(i, 1);
+        }
+    }
+    
+    function drawParticles() {
+        particles.forEach(p => {
+            ctx.globalAlpha = p.life;
+            ctx.fillStyle = p.color;
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+            ctx.fill();
+        });
+        ctx.globalAlpha = 1.0;
+    }
+
+    // Player Object
+    const player = {
+        x: 50, y: 0, width: 34, height: 34,
+        dx: 0, dy: 0, speed: 5, jumpPower: -10,
+        grounded: false, jumps: 0, maxJumps: 2,
+        facingRight: true,
+        reset(x, y) {
+            this.x = x; this.y = y;
+            this.dx = 0; this.dy = 0;
+            this.jumps = 0;
+            this.grounded = false;
+        }
+    };
+
+    // Draw Tabby Cat
+    function drawPlayer() {
+        const cx = player.x + player.width/2;
+        const cy = player.y + player.height/2;
+        
+        ctx.save();
+        ctx.translate(cx, cy);
+        if(!player.facingRight) ctx.scale(-1, 1);
+        
+        // Body (Orange)
+        ctx.fillStyle = '#df8b45';
+        ctx.beginPath();
+        // Squish effect based on vertical velocity
+        let stretchX = 1 + (Math.abs(player.dy) * 0.01);
+        let stretchY = 1 - (Math.abs(player.dy) * 0.01);
+        if(player.grounded) { stretchX = 1; stretchY = 1; }
+        
+        ctx.ellipse(0, 0, (player.width/2) * stretchX, (player.height/2) * stretchY, 0, 0, Math.PI*2);
+        ctx.fill();
+        
+        // Stripes (Dark Orange/Brown)
+        ctx.strokeStyle = '#9d6234';
+        ctx.lineWidth = 3;
+        ctx.lineCap = 'round';
+        // Top stripes
+        ctx.beginPath(); ctx.moveTo(-5, -12); ctx.lineTo(-5, -5); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(0, -14); ctx.lineTo(0, -5); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(5, -12); ctx.lineTo(5, -5); ctx.stroke();
+        
+        // Back stripes
+        ctx.beginPath(); ctx.moveTo(-15, 0); ctx.lineTo(-8, 2); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(-14, 5); ctx.lineTo(-7, 7); ctx.stroke();
+
+        // Ears
+        ctx.fillStyle = '#df8b45';
+        ctx.beginPath();
+        ctx.moveTo(-10, -10); ctx.lineTo(-15, -20); ctx.lineTo(-2, -15);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.moveTo(10, -10); ctx.lineTo(15, -20); ctx.lineTo(2, -15);
+        ctx.fill();
+        
+        // Inner ears
+        ctx.fillStyle = '#f2c17d';
+        ctx.beginPath();
+        ctx.moveTo(-9, -12); ctx.lineTo(-12, -17); ctx.lineTo(-4, -14);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.moveTo(9, -12); ctx.lineTo(12, -17); ctx.lineTo(4, -14);
+        ctx.fill();
+
+        // Eyes
+        ctx.fillStyle = 'white';
+        ctx.beginPath(); ctx.arc(4, -2, 4, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(14, -2, 4, 0, Math.PI*2); ctx.fill();
+        ctx.fillStyle = 'black';
+        ctx.beginPath(); ctx.arc(5, -2, 2, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(15, -2, 2, 0, Math.PI*2); ctx.fill();
+        
+        // Nose/Mouth
+        ctx.fillStyle = '#b95b52';
+        ctx.beginPath(); ctx.arc(9, 4, 2, 0, Math.PI*2); ctx.fill();
+        ctx.strokeStyle = 'black'; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(9,5); ctx.lineTo(7,7); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(9,5); ctx.lineTo(11,7); ctx.stroke();
+
+        // Tail
+        ctx.strokeStyle = '#df8b45';
+        ctx.lineWidth = 5;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        // Wag tail slightly based on horizontal movement
+        let tailOffset = Math.sin(Date.now() / 150) * 5;
+        if(Math.abs(player.dx) < 0.1) tailOffset = 0;
+        ctx.moveTo(-15, 5);
+        ctx.quadraticCurveTo(-25, 0, -25 + tailOffset, -10);
+        ctx.stroke();
+
+        ctx.restore();
+    }
+
+    // Level Data
+    let levelObj = {
+        platforms: [],
+        spikes: [],
+        coins: [],
+        key: { x: 0, y: 0, w: 20, h: 20, collected: false },
+        door: { x: 0, y: 0, w: 40, h: 60, open: false },
+        startPos: { x: 50, y: 300 }
+    };
+
+    const LEVEL_LAYOUTS = [
+        {
+            platforms: [
+                { x: 0, y: 450, w: 800, h: 50 },
+                { x: 190, y: 392, w: 170, h: 20 },
+                { x: 410, y: 340, w: 170, h: 20 }
+            ],
+            coins: [{ x: 255, y: 352 }, { x: 475, y: 300 }],
+            key: { x: 535, y: 300 },
+            door: { x: 700, y: 390 }
+        },
+        {
+            platforms: [
+                { x: 0, y: 450, w: 800, h: 50 },
+                { x: 155, y: 390, w: 165, h: 20 },
+                { x: 330, y: 335, w: 155, h: 20 },
+                { x: 505, y: 280, w: 150, h: 20 }
+            ],
+            coins: [{ x: 220, y: 350 }, { x: 395, y: 295 }, { x: 570, y: 240 }],
+            key: { x: 620, y: 240 },
+            door: { x: 700, y: 390 }
+        },
+        {
+            platforms: [
+                { x: 0, y: 450, w: 800, h: 50 },
+                { x: 140, y: 392, w: 155, h: 20 },
+                { x: 315, y: 342, w: 140, h: 20 },
+                { x: 490, y: 292, w: 140, h: 20 }
+            ],
+            spikes: [{ x: 360, y: 430, w: 34, h: 20 }],
+            coins: [{ x: 205, y: 352 }, { x: 370, y: 302 }],
+            key: { x: 545, y: 252 },
+            door: { x: 700, y: 390 }
+        },
+        {
+            platforms: [
+                { x: 0, y: 450, w: 800, h: 50 },
+                { x: 120, y: 392, w: 150, h: 20 },
+                { x: 300, y: 340, w: 135, h: 20 },
+                { x: 485, y: 288, w: 130, h: 20 },
+                { x: 620, y: 358, w: 115, h: 20 }
+            ],
+            spikes: [{ x: 446, y: 430, w: 34, h: 20 }],
+            coins: [{ x: 180, y: 352 }, { x: 352, y: 300 }, { x: 540, y: 248 }],
+            key: { x: 668, y: 318 },
+            door: { x: 700, y: 390 }
+        },
+        {
+            platforms: [
+                { x: 0, y: 450, w: 310, h: 50 },
+                { x: 500, y: 450, w: 300, h: 50 },
+                { x: 145, y: 382, w: 140, h: 20 },
+                { x: 340, y: 332, w: 135, h: 20 },
+                { x: 535, y: 382, w: 140, h: 20 }
+            ],
+            spikes: [{ x: 588, y: 430, w: 34, h: 20 }],
+            coins: [{ x: 205, y: 342 }, { x: 395, y: 292 }, { x: 570, y: 342 }],
+            key: { x: 435, y: 292 },
+            door: { x: 700, y: 390 }
+        },
+        {
+            platforms: [
+                { x: 0, y: 450, w: 270, h: 50 },
+                { x: 515, y: 450, w: 285, h: 50 },
+                { x: 125, y: 380, w: 125, h: 20 },
+                { x: 300, y: 325, w: 120, h: 20 },
+                { x: 475, y: 270, w: 120, h: 20 },
+                { x: 600, y: 345, w: 130, h: 20 }
+            ],
+            spikes: [{ x: 540, y: 430, w: 34, h: 20 }],
+            coins: [{ x: 175, y: 340 }, { x: 350, y: 285 }, { x: 525, y: 230 }],
+            key: { x: 650, y: 305 },
+            door: { x: 700, y: 390 }
+        },
+        {
+            platforms: [
+                { x: 0, y: 450, w: 250, h: 50 },
+                { x: 530, y: 450, w: 270, h: 50 },
+                { x: 110, y: 385, w: 115, h: 20 },
+                { x: 275, y: 332, w: 110, h: 20 },
+                { x: 435, y: 280, w: 110, h: 20 },
+                { x: 600, y: 330, w: 118, h: 20 }
+            ],
+            spikes: [{ x: 170, y: 430, w: 34, h: 20 }, { x: 625, y: 430, w: 34, h: 20 }],
+            coins: [{ x: 150, y: 345 }, { x: 315, y: 292 }, { x: 475, y: 240 }],
+            key: { x: 645, y: 290 },
+            door: { x: 700, y: 390 }
+        },
+        {
+            platforms: [
+                { x: 0, y: 450, w: 230, h: 50 },
+                { x: 550, y: 450, w: 250, h: 50 },
+                { x: 110, y: 385, w: 110, h: 20 },
+                { x: 285, y: 335, w: 105, h: 20, type: 'moving', vx: 1.1, startX: 285, range: 70 },
+                { x: 470, y: 285, w: 105, h: 20 },
+                { x: 610, y: 355, w: 105, h: 20 }
+            ],
+            spikes: [{ x: 585, y: 430, w: 34, h: 20 }],
+            coins: [{ x: 150, y: 345 }, { x: 325, y: 295 }, { x: 510, y: 245 }],
+            key: { x: 545, y: 245 },
+            door: { x: 700, y: 390 }
+        },
+        {
+            platforms: [
+                { x: 0, y: 450, w: 220, h: 50 },
+                { x: 560, y: 450, w: 240, h: 50 },
+                { x: 90, y: 390, w: 105, h: 20 },
+                { x: 245, y: 340, w: 100, h: 20 },
+                { x: 400, y: 290, w: 100, h: 20 },
+                { x: 555, y: 240, w: 100, h: 20 },
+                { x: 635, y: 360, w: 100, h: 20 }
+            ],
+            spikes: [{ x: 115, y: 430, w: 34, h: 20 }, { x: 590, y: 430, w: 34, h: 20 }],
+            coins: [{ x: 132, y: 350 }, { x: 287, y: 300 }, { x: 442, y: 250 }],
+            key: { x: 597, y: 200 },
+            door: { x: 700, y: 390 }
+        },
+        {
+            platforms: [
+                { x: 0, y: 450, w: 210, h: 50 },
+                { x: 565, y: 450, w: 235, h: 50 },
+                { x: 100, y: 382, w: 105, h: 20 },
+                { x: 270, y: 320, w: 98, h: 20 },
+                { x: 440, y: 260, w: 98, h: 20, type: 'moving', vx: -1.2, startX: 440, range: 65 },
+                { x: 610, y: 328, w: 110, h: 20 }
+            ],
+            spikes: [{ x: 610, y: 430, w: 34, h: 20 }],
+            coins: [{ x: 142, y: 342 }, { x: 310, y: 280 }, { x: 480, y: 220 }],
+            key: { x: 655, y: 288 },
+            door: { x: 700, y: 390 }
+        },
+        {
+            platforms: [
+                { x: 0, y: 450, w: 200, h: 50 },
+                { x: 575, y: 450, w: 225, h: 50 },
+                { x: 80, y: 390, w: 96, h: 20 },
+                { x: 230, y: 335, w: 92, h: 20 },
+                { x: 380, y: 280, w: 92, h: 20 },
+                { x: 530, y: 225, w: 92, h: 20 },
+                { x: 642, y: 342, w: 92, h: 20 }
+            ],
+            spikes: [{ x: 135, y: 430, w: 34, h: 20 }, { x: 590, y: 430, w: 34, h: 20 }],
+            coins: [{ x: 118, y: 350 }, { x: 268, y: 295 }, { x: 568, y: 185 }],
+            key: { x: 418, y: 240 },
+            door: { x: 700, y: 390 }
+        },
+        {
+            platforms: [
+                { x: 0, y: 450, w: 190, h: 50 },
+                { x: 585, y: 450, w: 215, h: 50 },
+                { x: 80, y: 386, w: 95, h: 20 },
+                { x: 245, y: 330, w: 90, h: 20, type: 'moving', vx: 1.3, startX: 245, range: 60 },
+                { x: 410, y: 274, w: 90, h: 20 },
+                { x: 575, y: 318, w: 100, h: 20 },
+                { x: 660, y: 382, w: 100, h: 20 }
+            ],
+            spikes: [{ x: 105, y: 430, w: 34, h: 20 }, { x: 610, y: 430, w: 34, h: 20 }],
+            coins: [{ x: 118, y: 346 }, { x: 282, y: 290 }, { x: 448, y: 234 }],
+            key: { x: 615, y: 278 },
+            door: { x: 700, y: 390 }
+        },
+        {
+            platforms: [
+                { x: 0, y: 450, w: 180, h: 50 },
+                { x: 590, y: 450, w: 210, h: 50 },
+                { x: 70, y: 390, w: 88, h: 20 },
+                { x: 215, y: 332, w: 86, h: 20 },
+                { x: 360, y: 274, w: 86, h: 20 },
+                { x: 505, y: 216, w: 86, h: 20 },
+                { x: 630, y: 300, w: 92, h: 20 }
+            ],
+            spikes: [{ x: 118, y: 430, w: 34, h: 20 }, { x: 628, y: 430, w: 34, h: 20 }],
+            coins: [{ x: 100, y: 350 }, { x: 245, y: 292 }, { x: 535, y: 176 }],
+            key: { x: 390, y: 234 },
+            door: { x: 700, y: 390 }
+        },
+        {
+            platforms: [
+                { x: 0, y: 450, w: 175, h: 50 },
+                { x: 600, y: 450, w: 200, h: 50 },
+                { x: 70, y: 382, w: 85, h: 20 },
+                { x: 220, y: 322, w: 84, h: 20 },
+                { x: 370, y: 262, w: 84, h: 20, type: 'moving', vx: -1.4, startX: 370, range: 60 },
+                { x: 520, y: 318, w: 86, h: 20 },
+                { x: 650, y: 366, w: 90, h: 20 }
+            ],
+            spikes: [{ x: 98, y: 430, w: 34, h: 20 }, { x: 620, y: 430, w: 34, h: 20 }],
+            coins: [{ x: 100, y: 342 }, { x: 250, y: 282 }, { x: 400, y: 222 }],
+            key: { x: 550, y: 278 },
+            door: { x: 700, y: 390 }
+        },
+        {
+            platforms: [
+                { x: 0, y: 450, w: 160, h: 50 },
+                { x: 650, y: 450, w: 150, h: 50 },
+                { x: 78, y: 385, w: 82, h: 20 },
+                { x: 220, y: 325, w: 80, h: 20 },
+                { x: 360, y: 265, w: 80, h: 20 },
+                { x: 500, y: 205, w: 80, h: 20 },
+                { x: 625, y: 295, w: 82, h: 20 }
+            ],
+            spikes: [{ x: 92, y: 430, w: 34, h: 20 }, { x: 665, y: 430, w: 34, h: 20 }],
+            coins: [{ x: 108, y: 345 }, { x: 250, y: 285 }, { x: 530, y: 165 }],
+            key: { x: 390, y: 225 },
+            door: { x: 700, y: 390 }
+        },
+        {
+            platforms: [
+                { x: 0, y: 450, w: 150, h: 50 },
+                { x: 650, y: 450, w: 150, h: 50 },
+                { x: 70, y: 388, w: 80, h: 20 },
+                { x: 205, y: 330, w: 78, h: 20 },
+                { x: 340, y: 272, w: 78, h: 20, type: 'moving', vx: 1.5, startX: 340, range: 55 },
+                { x: 475, y: 214, w: 78, h: 20 },
+                { x: 610, y: 302, w: 82, h: 20 }
+            ],
+            spikes: [{ x: 82, y: 430, w: 34, h: 20 }, { x: 675, y: 430, w: 34, h: 20 }],
+            coins: [{ x: 100, y: 348 }, { x: 235, y: 290 }, { x: 505, y: 174 }],
+            key: { x: 640, y: 262 },
+            door: { x: 700, y: 390 }
+        },
+        {
+            platforms: [
+                { x: 0, y: 450, w: 145, h: 50 },
+                { x: 655, y: 450, w: 145, h: 50 },
+                { x: 68, y: 386, w: 76, h: 20 },
+                { x: 195, y: 328, w: 74, h: 20 },
+                { x: 322, y: 270, w: 74, h: 20 },
+                { x: 449, y: 212, w: 74, h: 20 },
+                { x: 576, y: 284, w: 76, h: 20 },
+                { x: 660, y: 360, w: 84, h: 20 }
+            ],
+            spikes: [{ x: 92, y: 430, w: 34, h: 20 }, { x: 685, y: 430, w: 34, h: 20 }],
+            coins: [{ x: 96, y: 346 }, { x: 223, y: 288 }, { x: 477, y: 172 }],
+            key: { x: 604, y: 244 },
+            door: { x: 700, y: 390 }
+        },
+        {
+            platforms: [
+                { x: 0, y: 450, w: 140, h: 50 },
+                { x: 660, y: 450, w: 140, h: 50 },
+                { x: 62, y: 386, w: 74, h: 20 },
+                { x: 190, y: 326, w: 72, h: 20, type: 'moving', vx: 1.4, startX: 190, range: 55 },
+                { x: 320, y: 266, w: 72, h: 20 },
+                { x: 450, y: 206, w: 72, h: 20 },
+                { x: 580, y: 292, w: 76, h: 20 },
+                { x: 666, y: 366, w: 82, h: 20 }
+            ],
+            spikes: [{ x: 70, y: 430, w: 34, h: 20 }, { x: 690, y: 430, w: 34, h: 20 }],
+            coins: [{ x: 90, y: 346 }, { x: 348, y: 226 }, { x: 478, y: 166 }],
+            key: { x: 608, y: 252 },
+            door: { x: 700, y: 390 }
+        },
+        {
+            platforms: [
+                { x: 0, y: 450, w: 135, h: 50 },
+                { x: 665, y: 450, w: 135, h: 50 },
+                { x: 64, y: 388, w: 72, h: 20 },
+                { x: 188, y: 330, w: 70, h: 20 },
+                { x: 312, y: 272, w: 70, h: 20 },
+                { x: 436, y: 214, w: 70, h: 20 },
+                { x: 560, y: 276, w: 72, h: 20, type: 'moving', vx: -1.3, startX: 560, range: 50 },
+                { x: 672, y: 356, w: 78, h: 20 }
+            ],
+            spikes: [{ x: 78, y: 430, w: 34, h: 20 }, { x: 688, y: 430, w: 34, h: 20 }],
+            coins: [{ x: 92, y: 348 }, { x: 340, y: 232 }, { x: 464, y: 174 }],
+            key: { x: 588, y: 236 },
+            door: { x: 700, y: 390 }
+        },
+        {
+            platforms: [
+                { x: 0, y: 450, w: 130, h: 50 },
+                { x: 670, y: 450, w: 130, h: 50 },
+                { x: 60, y: 386, w: 70, h: 20 },
+                { x: 180, y: 328, w: 68, h: 20 },
+                { x: 300, y: 270, w: 68, h: 20, type: 'moving', vx: 1.5, startX: 300, range: 50 },
+                { x: 420, y: 212, w: 68, h: 20 },
+                { x: 540, y: 272, w: 70, h: 20 },
+                { x: 658, y: 336, w: 78, h: 20 },
+                { x: 700, y: 450, w: 100, h: 50 }
+            ],
+            spikes: [{ x: 70, y: 430, w: 34, h: 20 }, { x: 690, y: 430, w: 34, h: 20 }],
+            coins: [{ x: 88, y: 346 }, { x: 328, y: 230 }, { x: 448, y: 172 }],
+            key: { x: 568, y: 232 },
+            door: { x: 710, y: 390 }
+        }
+    ];
+
+    function withItemDefaults(items) {
+        return items.map(item => ({ x: item.x, y: item.y, w: 20, h: 20, collected: false }));
+    }
+
+    function generateLevel(levelNum) {
+        const spec = LEVEL_LAYOUTS[levelNum - 1] || LEVEL_LAYOUTS[0];
+        return {
+            platforms: spec.platforms.map(p => ({ ...p })),
+            spikes: (spec.spikes || []).map(s => ({ ...s })),
+            coins: withItemDefaults(spec.coins || []),
+            key: { x: spec.key.x, y: spec.key.y, w: 20, h: 20, collected: false },
+            door: { x: spec.door.x, y: spec.door.y, w: 50, h: 60, open: false },
+            startPos: spec.startPos ? { ...spec.startPos } : { x: 50, y: 350 }
+        };
+    }
+
+    function loadLevel(levelNum) {
+        levelObj = generateLevel(levelNum);
+        player.reset(levelObj.startPos.x, levelObj.startPos.y);
+        particles = [];
+        floatingTexts = [];
+        updateHud();
+        showFeedback(levelNum === 1 ? '先拿鑰匙，再進出口' : `第 ${levelNum} 關開始`);
+    }
+
+    // Update Logic
+    function update() {
+        if(gameState !== 'PLAYING') return;
+
+        // Player Movement
+        if(keys.right) { player.dx = player.speed; player.facingRight = true; }
+        else if(keys.left) { player.dx = -player.speed; player.facingRight = false; }
+        else { player.dx *= 0.8; } // Friction
+
+        // Jump (Double jump logic)
+        if(keys.up) {
+            if(player.grounded) {
+                player.dy = player.jumpPower;
+                player.grounded = false;
+                player.jumps = 1;
+                createParticles(player.x + player.width/2, player.y + player.height, '#d8c6a7', 10);
+            } else if (player.jumps > 0 && player.jumps < player.maxJumps) {
+                player.dy = player.jumpPower * 0.9;
+                player.jumps++;
+                createParticles(player.x + player.width/2, player.y + player.height, '#86b7c8', 15);
+            }
+            keys.up = false; // Require key release for next jump
+        }
+
+        player.dy += 0.5; // Gravity
+        
+        // Platform movement update
+        levelObj.platforms.forEach(p => {
+            if(p.type === 'moving') {
+                p.x += p.vx;
+                if(Math.abs(p.x - p.startX) > p.range) {
+                    p.vx *= -1; // Reverse direction
+                }
+            }
+        });
+
+        // Apply movement & Collision resolution
+        player.x += player.dx;
+        
+        // Bounds check X
+        if(player.x < 0) { player.x = 0; player.dx = 0; }
+        if(player.x + player.width > canvas.width) { player.x = canvas.width - player.width; player.dx = 0; }
+
+        player.y += player.dy;
+
+        // Platform collisions (Vertical only for simplicity, standard platformer)
+        player.grounded = false;
+        for(let p of levelObj.platforms) {
+            // Check if falling down onto a platform
+            if(player.dy >= 0 && 
+               player.y + player.height - player.dy <= p.y && // Was above before moving
+               player.y + player.height >= p.y && // Is below or on top now
+               player.x + player.width > p.x && player.x < p.x + p.w) {
+                
+                player.grounded = true;
+                player.dy = 0;
+                player.y = p.y - player.height;
+                player.jumps = 0;
+                
+                // Stick to moving platform
+                if(p.type === 'moving') {
+                    player.x += p.vx;
+                }
+            }
+        }
+
+        // Death by falling
+        if(player.y > canvas.height + 100) {
+            die();
+        }
+
+        // Spike collision (AABB)
+        for(let s of levelObj.spikes) {
+            // Smaller hitbox for spikes to be forgiving
+            if(player.x + 5 < s.x + s.w && player.x + player.width - 5 > s.x &&
+               player.y + 10 < s.y + s.h && player.y + player.height > s.y + 5) {
+                die();
+            }
+        }
+
+        // Key collection
+        if(!levelObj.key.collected && checkAABB(player, levelObj.key)) {
+            levelObj.key.collected = true;
+            createParticles(levelObj.key.x + 10, levelObj.key.y + 10, '#e7a83e', 30);
+            createFloatingText(levelObj.key.x + 10, levelObj.key.y, '鑰匙到手', '#9b5b24');
+            showFeedback('門打開了，去出口！');
+            updateHud();
+        }
+
+        // Coin collection
+        for(let c of levelObj.coins) {
+            if(!c.collected && checkAABB(player, c)) {
+                c.collected = true;
+                score += 10;
+                updateHud();
+                createParticles(c.x + 10, c.y + 10, '#e7a83e', 10);
+                createFloatingText(c.x + 10, c.y, '+10', '#b8722e');
+            }
+        }
+
+        // Door collision (Next Level)
+        if(levelObj.key.collected && checkAABB(player, levelObj.door)) {
+            levelComplete();
+        }
+
+        updateParticles();
+        updateFloatingTexts();
+    }
+
+    function checkAABB(rect1, rect2) {
+        return rect1.x < rect2.x + rect2.w &&
+               rect1.x + rect1.width > rect2.x &&
+               rect1.y < rect2.y + rect2.h &&
+               rect1.y + rect1.height > rect2.y;
+    }
+
+    function die() {
+        gameState = 'GAME_OVER';
+        resetControls();
+        createParticles(player.x + player.width/2, player.y + player.height/2, '#c85c4f', 50, 4);
+        showFeedback('沒關係，再試一次');
+        showUI('gameover-panel');
+    }
+
+    function levelComplete() {
+        gameState = 'LEVEL_COMPLETE';
+        resetControls();
+        createParticles(levelObj.door.x + levelObj.door.w/2, levelObj.door.y + levelObj.door.h/2, '#83b76f', 100, 5);
+        levelStats.innerText = `完成第 ${currentLevel} 關，目前累計金幣 ${score}。`;
+        
+        if(currentLevel >= maxLevels) {
+            gameState = 'VICTORY';
+            showUI('victory-panel');
+        } else {
+            showUI('levelcomplete-panel');
+        }
+    }
+
+    // Render Logic
+    function roundedRect(x, y, w, h, radius) {
+        if(ctx.roundRect) {
+            ctx.roundRect(x, y, w, h, radius);
+            return;
+        }
+        ctx.moveTo(x + radius, y);
+        ctx.lineTo(x + w - radius, y);
+        ctx.quadraticCurveTo(x + w, y, x + w, y + radius);
+        ctx.lineTo(x + w, y + h - radius);
+        ctx.quadraticCurveTo(x + w, y + h, x + w - radius, y + h);
+        ctx.lineTo(x + radius, y + h);
+        ctx.quadraticCurveTo(x, y + h, x, y + h - radius);
+        ctx.lineTo(x, y + radius);
+        ctx.quadraticCurveTo(x, y, x + radius, y);
+    }
+
+    function draw() {
+        let grd = ctx.createLinearGradient(0, 0, 0, canvas.height);
+        grd.addColorStop(0, '#f9e9c8');
+        grd.addColorStop(0.56, '#f5d9a4');
+        grd.addColorStop(1, '#d7c58a');
+        ctx.fillStyle = grd;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // Draw soft moving clouds
+        ctx.fillStyle = 'rgba(255, 253, 246, 0.58)';
+        for(let i=0; i<5; i++) {
+            ctx.beginPath();
+            ctx.ellipse((i * 180 + Date.now()/120) % 880 - 40, 60 + (i*22 % 110), 34 + i*7, 14 + i*3, 0, 0, Math.PI*2);
+            ctx.fill();
+        }
+
+        // Draw Platforms
+        levelObj.platforms.forEach(p => {
+            ctx.fillStyle = p.type === 'moving' ? '#86b7c8' : '#8fb36b';
+            ctx.beginPath();
+            roundedRect(p.x, p.y, p.w, p.h, 8);
+            ctx.fill();
+            
+            // Platform top highlight
+            ctx.fillStyle = p.type === 'moving' ? '#b7d7de' : '#b8cf8e';
+            ctx.beginPath();
+            roundedRect(p.x, p.y, p.w, 5, 5);
+            ctx.fill();
+        });
+
+        // Draw Spikes
+        ctx.fillStyle = '#a84742';
+        levelObj.spikes.forEach(s => {
+            ctx.beginPath();
+            ctx.moveTo(s.x, s.y + s.h);
+            ctx.lineTo(s.x + s.w/2, s.y);
+            ctx.lineTo(s.x + s.w, s.y + s.h);
+            ctx.fill();
+            // Highlight
+            ctx.fillStyle = '#d9725d';
+            ctx.beginPath();
+            ctx.moveTo(s.x + s.w/2, s.y);
+            ctx.lineTo(s.x + s.w*0.8, s.y + s.h);
+            ctx.lineTo(s.x + s.w/2, s.y + s.h);
+            ctx.fill();
+            ctx.fillStyle = '#a84742';
+        });
+
+        // Draw Coins
+        levelObj.coins.forEach(c => {
+            if(c.collected) return;
+            let bounce = Math.sin(Date.now() / 200 + c.x) * 3;
+            ctx.fillStyle = '#f6ca58';
+            ctx.beginPath();
+            ctx.ellipse(c.x + c.w/2, c.y + c.h/2 + bounce, c.w/2, c.h/2, 0, 0, Math.PI*2);
+            ctx.fill();
+            ctx.fillStyle = '#d98b34';
+            ctx.beginPath();
+            ctx.ellipse(c.x + c.w/2, c.y + c.h/2 + bounce, c.w/4, c.h/2, 0, 0, Math.PI*2);
+            ctx.fill();
+        });
+
+        // Draw Door
+        if(levelObj.key.collected) {
+            ctx.save();
+            ctx.fillStyle = 'rgba(131, 183, 111, 0.28)';
+            ctx.beginPath();
+            ctx.arc(levelObj.door.x + levelObj.door.w/2, levelObj.door.y + levelObj.door.h/2, 56 + Math.sin(Date.now()/180) * 4, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+        }
+        ctx.fillStyle = levelObj.key.collected ? '#83b76f' : '#c85c4f';
+        ctx.fillRect(levelObj.door.x, levelObj.door.y, levelObj.door.w, levelObj.door.h);
+        
+        // Door details
+        ctx.fillStyle = '#6f4d35';
+        ctx.fillRect(levelObj.door.x - 5, levelObj.door.y - 5, levelObj.door.w + 10, 5); // top frame
+        ctx.fillRect(levelObj.door.x - 5, levelObj.door.y, 5, levelObj.door.h); // left frame
+        ctx.fillRect(levelObj.door.x + levelObj.door.w, levelObj.door.y, 5, levelObj.door.h); // right frame
+        
+        if(!levelObj.key.collected) {
+            // Lock
+            ctx.fillStyle = '#fff5d8';
+            ctx.fillRect(levelObj.door.x + levelObj.door.w/2 - 5, levelObj.door.y + levelObj.door.h/2 - 5, 10, 10);
+        } else {
+            // Open indicator
+            ctx.fillStyle = 'rgba(70, 48, 32, 0.55)';
+            ctx.fillRect(levelObj.door.x + 5, levelObj.door.y + 5, levelObj.door.w - 10, levelObj.door.h - 5);
+        }
+
+        // Draw Key
+        if(!levelObj.key.collected) {
+            let bounce = Math.sin(Date.now() / 200) * 5;
+            ctx.fillStyle = '#f6ca58';
+            ctx.beginPath();
+            ctx.arc(levelObj.key.x + 10, levelObj.key.y + 10 + bounce, 8, 0, Math.PI*2);
+            ctx.fill();
+            ctx.fillRect(levelObj.key.x + 10, levelObj.key.y + 8 + bounce, 12, 4);
+            ctx.fillRect(levelObj.key.x + 18, levelObj.key.y + 12 + bounce, 4, 4);
+        }
+
+        // Draw Player
+        if(gameState === 'PLAYING' || gameState === 'LEVEL_COMPLETE') {
+            drawPlayer();
+        }
+
+        drawParticles();
+        drawFloatingTexts();
+    }
+
+    // Main Game Loop
+    function gameLoop() {
+        update();
+        draw();
+        requestAnimationFrame(gameLoop);
+    }
+
+    // UI Management
+    function hideAllUI() {
+        uiLayer.classList.add('hidden');
+        gameContainer.classList.add('playing');
+        const panels = document.querySelectorAll('.ui-panel');
+        panels.forEach(p => p.style.display = 'none');
+    }
+
+    function showUI(panelId) {
+        uiLayer.classList.remove('hidden');
+        gameContainer.classList.remove('playing');
+        const panels = document.querySelectorAll('.ui-panel');
+        panels.forEach(p => p.style.display = 'none');
+        document.getElementById(panelId).style.display = 'block';
+    }
+
+    // Button Listeners
+    document.getElementById('start-btn').addEventListener('click', () => {
+        hideAllUI();
+        currentLevel = 1;
+        score = 0;
+        loadLevel(currentLevel);
+        gameState = 'PLAYING';
+    });
+
+    document.getElementById('retry-btn').addEventListener('click', () => {
+        hideAllUI();
+        resetControls();
+        loadLevel(currentLevel); // Reload same level
+        gameState = 'PLAYING';
+    });
+
+    document.getElementById('next-btn').addEventListener('click', () => {
+        hideAllUI();
+        resetControls();
+        currentLevel++;
+        loadLevel(currentLevel);
+        gameState = 'PLAYING';
+    });
+    
+    document.getElementById('home-btn').addEventListener('click', () => {
+        showUI('menu-panel');
+        gameState = 'MENU';
+        resetControls();
+    });
+
+    // Initialize
+    showUI('menu-panel');
+    loadLevel(currentLevel);
+    gameLoop();
+
+</script>
+</body>
+</html>
